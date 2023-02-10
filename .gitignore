@@ -1,0 +1,6 @@
+preparation
+env
+.env
+__pycache__
+setup*.sql
+capable*.json
