@@ -5,10 +5,15 @@ Tests for the Article model
 
 from decouple import config
 import inspect
-from models.article import Article
 from models.base_model import BaseModel
+from models.article import Article
+from models.user import User
+from models.feed import Feed
+from models.tag import Tag, TagArticleAssociation
+from models import storage
 import pycodestyle
 import unittest
+from datetime import datetime
 
 
 class TestArticleDocs(unittest.TestCase):
@@ -101,3 +106,82 @@ class TestArticle(unittest.TestCase):
         article = Article()
         string = "[Article] ({}) {}".format(article.id, article.__dict__)
         self.assertEqual(string, str(article))
+
+    def test_like(self):
+        """Test article likes"""
+        feed = Feed(
+            name="FeedName",
+            link="FeedUrl"
+        )
+
+        storage.new(feed)
+
+        article = Article(
+            feed_id=feed.id,
+            title="ArticleTitle",
+            description="ArticleDescription",
+            publish_date=datetime.now(),
+            shares=150
+        )
+
+        user = User(
+            email="UserEmail",
+            name='UserName',
+            profile_pic="UserProfilepic"
+        )
+
+        storage.new(article)
+        storage.new(user)
+        article.article_liked_by.append(user)
+
+        storage.save()
+
+        found_user = storage.get(User, user.id)
+        self.assertTrue(article in found_user.liked_articles)
+
+        dummy = Article(
+            feed_id=feed.id,
+            title="ArticleTitle",
+            description="ArticleDescription",
+            publish_date=datetime.now(),
+            shares=50
+        )
+
+        storage.new(dummy)
+
+        self.assertFalse(dummy in found_user.liked_articles)
+
+    def test_tag_associations(self):
+        """Test article tag Association object"""
+        feed = Feed(
+            name="FeedName",
+            link="FeedUrl"
+        )
+
+        storage.new(feed)
+
+        article = Article(
+            feed_id=feed.id,
+            title="ArticleTitle",
+            description="ArticleDescription",
+            publish_date=datetime.now(),
+            shares=150
+        )
+
+        storage.new(article)
+
+        assoc = TagArticleAssociation(confidence=0.95)
+        assoc.tag = Tag(
+            name="TagName"
+        )
+
+        article.article_tag_associations.append(assoc)
+        storage.save()
+
+        for asso in article.article_tag_associations:
+            if assoc.tag.id == asso.tag.id:
+                confidence = asso.confidence
+                tag = asso.tag
+
+        self.assertEqual(confidence, 0.95)
+        self.assertEqual(assoc.tag, tag)
