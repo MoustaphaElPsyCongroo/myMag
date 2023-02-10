@@ -31,15 +31,15 @@ class DBStorage:
                                                  config('MYMAG_MYSQL_DB')))
 
         else:
-            # Base.metadata.drop_all(self.__engine)
             self.__engine = create_engine('mysql+mysqldb://{}:{}@{}/{}'.
                                           format(config('TEST_MYSQL_USER'),
                                                  config('TEST_MYSQL_PWD'),
                                                  config('TEST_MYSQL_HOST'),
                                                  config('TEST_MYSQL_DB')))
+            Base.metadata.drop_all(self.__engine)
 
     def all(self, cls=None):
-        """Returns a dictionary of all objectrs currently stored in the
+        """Returns a dictionary of all objects currently stored in the
         database session, depending on name or not"""
         new_dict = {}
         for clss in classes:
