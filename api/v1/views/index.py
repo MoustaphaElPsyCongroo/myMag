@@ -18,8 +18,8 @@ def status():
 @app_views.route('/stats', methods=['GET'])
 def number_objects():
     """Retrieves the number of each object by type"""
-    classes = [Article, Feed, Tag, User]
-    names = ['articles', 'feeds', 'tags', 'users']
+    classes = [Feed, Tag, User]
+    names = ['feeds', 'tags', 'users']
 
     num_objs = {}
     for i in range(len(classes)):
