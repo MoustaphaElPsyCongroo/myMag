@@ -1,20 +1,27 @@
 #!/usr/bin/python3
 """Flask Application"""
+import os
 from decouple import config
 from models import storage
 from models.user import User
 from api.v1.views import app_views
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
+from flask_login import (
+    LoginManager
+)
 from flask_cors import CORS
-from flask_jwt_router import Google, JwtRoutes
 from flasgger import Swagger
+
 
 app = Flask(__name__)
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 app.url_map.strict_slashes = False
 app.register_blueprint(app_views)
-app.secret_key = config('SECRET_KEY')
+app.secret_key = os.urandom(24)
 cors = CORS(app, resources={r"/api/v1/*": {"origins": "*"}})
+
+login_manager = LoginManager()
+login_manager.init_app(app)
 
 
 @app.teardown_appcontext
@@ -36,6 +43,12 @@ def not_found(error):
     }
 
     return jsonify(status), 404
+
+
+# Flask-Login helper to retrieve a user from the db
+@login_manager.user_loader
+def load_user(user_id):
+    return storage.get(User, user_id)
 
 
 app.config['SWAGGER'] = {
