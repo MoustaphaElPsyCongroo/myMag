@@ -1,116 +1,130 @@
-#!/usr/bin/python3
-from decouple import config
-from api.v1.views import app_views
-import requests
-from models import storage
-from models.user import User
-from flask import abort, jsonify, redirect, request
-from flask_login import (
-    current_user,
-    login_required,
-    login_user,
-    logout_user
-)
-import json
-from oauthlib.oauth2 import WebApplicationClient
+# #!/usr/bin/python3
+# """Google Auth"""
+# from decouple import config
+# from app import app
+# import requests
+# from models import storage
+# from models.user import User
+# from flask import abort, jsonify, redirect, request, session
+# import google
+# from google.oauth2 import id_token
+# from google_auth_oauthlib.flow import Flow
+# import json
+# import jwt
+# from oauthlib.oauth2 import WebApplicationClient
+# import os
+# import pathlib
 
-GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID')
-GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET')
-GOOGLE_DISCOVERY_URL = config('GOOGLE_DISCOVERY_URL')
+# GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID')
+# client_secrets_file = os.path.join(
+#     pathlib.Path(__file__).parent, 'client-secret.json')
+# algorithm = config('JWT_ENCODE_ALGORITHM')
+# BACKEND_URL = config('BACKEND_URL')
+# FRONTEND_URL = config('FRONTEND_URL')
 
-client = WebApplicationClient(GOOGLE_CLIENT_ID)
+# # Bypass http warnings ---- IN TESTING ONLY, NEVER IN PRODUCTION ---
+# os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
-
-"""Get Google's provider configuration as required by OpenID Connect"""
-
-
-def get_google_provider_cfg():
-    try:
-        req = requests.get(GOOGLE_DISCOVERY_URL)
-        return req.json()
-    except requests.ConnectionError as e:
-        print('Connection error: ', str(e))
-    except requests.Timeout as e:
-        print('Timeout: ', str(e))
-    except requests.RequestException as e:
-        print('Request error: ', str(e))
-    except KeyboardInterrupt:
-        print('Program closed prematurely')
+# """Find what URL to redirect to for Google login
+#     and what user information to retrieve
+# """
+# flow = Flow.from_client_secrets_file(
+#     client_secrets_file=client_secrets_file,
+#     scopes=['profile', 'email', 'openid'],
+#     redirect_uri=f'{BACKEND_URL}/login/callback'
+# )
 
 
-@app_views.route('/login')
-def login():
-    """Find what URL to redirect to for Google login"""
-    google_provider_cfg = get_google_provider_cfg()
-    authorization_endpoint = google_provider_cfg['authorization_endpoint']
-
-    # Construct the request for Google login and provide scopes to retrieve
-    # user's profile from Google
-    request_uri = client.prepare_request_uri(
-        authorization_endpoint,
-        redirect_uri=request.base_url + '/callback',
-        scope=['openid', 'email', 'profile']
-    )
-    return redirect(request_uri)
+# def login_required(function):
+#     def wrapper(*args, **kwargs):
+#         """Decorator for auth validation, in the example of Flask-Login"""
+#         encoded_jwt = request.headers.get('Authorization').split('Bearer ')[1]
+#         if encoded_jwt is None:
+#             return abort(401)
+#         else:
+#             return function()
+#     return wrapper
 
 
-@app_views.route('/login/callback')
-def callback():
-    """Get authorization code sent back from Google and get token"""
-    code = request.args.get('code')
-
-    # Find what URL to get authorization tokens
-    google_provider_cfg = get_google_provider_cfg()
-    token_endpoint = google_provider_cfg['token_endpoint']
-
-    token_url, headers, body = client.prepare_token_request(
-        token_endpoint,
-        authorization_response=request.url,
-        redirect_url=request.base_url,
-        code=code
-    )
-
-    token_response = requests.post(
-        token_url,
-        headers=headers,
-        data=body,
-        auth=(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET)
-    )
-
-    # Parse the tokens
-    client.parse_request_body_response(json.dumps(token_response.json()))
-
-    # Find and check the URL that gives user's profile info
-    userinfo_endpoint = google_provider_cfg['userinfo_endpoint']
-    uri, headers, body = client.add_token(userinfo_endpoint)
-    userinfo_response = requests.get(uri, headers=headers, data=body)
-
-    # If user email is verified by Google, get user's info
-    if userinfo_response.json().get('email_verified'):
-        userinfo_response_json = userinfo_response.json()
-        user_unique_id = userinfo_response_json['sub']
-        user_email = userinfo_response_json['email']
-        user_picture = userinfo_response_json['picture']
-        user_name = userinfo_response_json['given_name']
-    else:
-        abort(
-            400,
-            description='User email not available or not verified by Google')
-
-    # Create the user in db if needed then log it
-    if storage.get(User, user_unique_id) is None:
-        user = User(id=user_unique_id, email=user_email,
-                    profile_pic=user_picture, name=user_name)
-        storage.new(user)
-        storage.save()
-
-    login_user(user)
-    return jsonify({'User successfully authenticated'}), 200
+# def Generate_JWT(payload):
+#     """Generate a JSON Web Token"""
+#     encoded_jwt = jwt.encode(payload, app.secret_key, algorithm=algorithm)
+#     return encoded_jwt
 
 
-@app_views.route('/logout')
-@login_required
-def logout():
-    """Logout the user"""
-    logout_user()
-    return jsonify({'User successfully disconnected'}), 200
+# @app.route('login/callback')
+# def callback():
+#     """Get auth code sent back from Google and get token"""
+#     flow.fetch_token(authorization_response=request.url)
+#     credentials = flow.credentials
+#     request_session = requests.session()
+#     token_request = google.auth.transport.requests.Request(
+#         session=request_session)
+
+#     id_info = id_token.verify_oauth2_token(
+#         id_token=credentials._id_token,
+#         request=token_request,
+#         audience=GOOGLE_CLIENT_ID
+#     )
+#     session['google_id'] = id_info.get('sub')
+
+#     del id_info['aud']
+#     jwt_token = Generate_JWT(id_info)
+
+#     user_id = id_info.get('sub')
+#     user_name = id_info.get('name')
+#     user_email = id_info.get('email')
+#     user_picture = id_info.get('picture')
+#     user = storage.get(User, user_id)
+
+#     if user is None:
+#         new_user = User(
+#             id=user_id,
+#             name=user_name,
+#             email=user_email,
+#             profile_pic=user_picture
+#         )
+#         storage.new(new_user)
+#         storage.save()
+#     return redirect(f'{FRONTEND_URL}?jwt={jwt_token}')
+#     # return jsonify({'JWT': jwt_token}), 200
+
+
+# @app.route('/auth/google')
+# def login():
+#     """Get Google's authorization url and store the state so that
+#     the callback can verify the auth server response
+#     """
+#     authorization_url, state = flow.authorization_url()
+#     session['state'] = state
+#     return jsonify({'auth_url': authorization_url}), 200
+
+
+# @app.route('/logout')
+# def logout():
+#     """Clear user's id from the flask session
+#     """
+#     # Don't forget to clear the localStorage from the frontend
+#     session.clear()
+#     return jsonify({'message': 'User successfully logged out'}), 202
+
+
+# # A remplacer par la route User quand on la fera puis suppirmer celle la,
+# # c'est juste pour tester
+# # Euh, quoique… A voir quand j'aurai testé depuis React
+# @app.route('/home')
+# @login_required
+# def home_page_user():
+#     encoded_jwt = request.headers.get('Authorization').split('Bearer')[1]
+#     try:
+#         decoded_jwt = jwt.decode(
+#             encoded_jwt, app.secret_key, algorithm=algorithm)
+#         # print(decoded_jwt)
+#     except Exception as e:
+#         return jsonify({
+#             'message': 'Decoding JWT failed',
+#             'exception': e.args
+#         }), 500
+#     return jsonify({
+#         'Decoded JWT': decoded_jwt
+#     }), 200

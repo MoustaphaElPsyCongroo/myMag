@@ -4,3 +4,5 @@ env
 __pycache__
 setup*.sql
 capable*.json
+client-secret.json
+node_modules
