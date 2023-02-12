@@ -2,47 +2,32 @@ import React, { useEffect } from 'react';
 import Signin from './components/SignIn/Signin';
 import LoggedIn from './components/Loggedin';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import Axios from 'axios';
+import { useGoogleLogin } from '@react-oauth/google';
+import axios from 'axios';
 
 function App () {
-  const handleClick = (e) => {
-    console.log(process.env.REACT_APP_BACKEND_URL);
-    e.preventDefault();
-    Axios.get(`${process.env.REACT_APP_BACKEND_URL}/auth/google`, {
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type'
-      }
-    })
-      .then((res) => {
-        console.log('going!');
-        window.location.assign(res.data.auth_url);
-        console.log('gone!');
-      })
-      .catch((err) => console.error(err));
-    console.log(process.env.REACT_APP_BACKEND_URL);
-  };
+  const login = useGoogleLogin({
+    onSuccess: async ({ code }) => {
+      const tokens = await axios.post('http://127.0.0.1:5000/api/v1/auth/login', {
+        code
+      });
 
-  useEffect(() => {
-    if (localStorage.getItem('JWT') == null) {
-      const query = new URLSearchParams(window.location.search);
-      const token = query.get('jwt');
-      if (token) {
-        localStorage.setItem('JWT', token);
-        return <Navigate to='/home' />;
-      }
-    }
-  }, []);
+      console.log(tokens);
+    },
+    flow: 'auth_code'
+  });
 
   return (
-    <Routes>
-      <Route
-        exact
-        path='/login'
-        element={<Signin login={handleClick} />}
-      />
-      <Route path='/home' element={<LoggedIn />} />
-    </Routes>
+    <div style={{ padding: '10px', border: '2px solid black', margin: '20px' }}>
+      <button onClick={login} className='login'>
+        <img
+          style={{ width: '50px', height: '50px', paddingTop: '10px' }}
+          src='https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png'
+          alt='Google Logo'
+        />
+        Log in
+      </button>
+    </div>
   );
 }
 

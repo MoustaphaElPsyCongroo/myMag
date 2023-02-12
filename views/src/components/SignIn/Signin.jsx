@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router';
 
 function SignIn (props) {
-  useEffect(() => {
-    if (localStorage.getItem('JWT') != null) {
-      return <Navigate to='/home' />;
-    }
-  }, []);
+  // useEffect(() => {
+  //   if (localStorage.getItem('JWT') != null) {
+  //     return <Navigate to='/home' />;
+  //   }
+  // }, []);
 
   return (
     <div style={{ padding: '10px', border: '2px solid black', margin: '20px' }}>

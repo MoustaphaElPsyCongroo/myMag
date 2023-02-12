@@ -23,8 +23,9 @@ app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 app.url_map.strict_slashes = False
 app.register_blueprint(app_views)
 app.secret_key = os.urandom(24)
-cors = CORS(app, resources={r"/api/v1/*": {"origins": "*"}})
-app.config['CORS_HEADERS'] = 'Content-Type'
+# cors = CORS(app, resources={r"/api/v1/*": {"origins": "*"}})
+CORS(app)
+# app.config['CORS_HEADERS'] = 'Content-Type'
 
 
 @app.teardown_appcontext
@@ -57,6 +58,7 @@ Swagger(app)
 
 
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET')
 client_secrets_file = os.path.join(
     pathlib.Path(__file__).parent, 'client-secret.json')
 algorithm = config('JWT_ENCODE_ALGORITHM')
@@ -69,14 +71,14 @@ os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 """Find what URL to redirect to for Google login
     and what user information to retrieve
 """
-flow = Flow.from_client_secrets_file(
-    client_secrets_file=client_secrets_file,
-    scopes=[
-        'https://www.googleapis.com/auth/userinfo.profile',
-        'https://www.googleapis.com/auth/userinfo.email',
-        'openid'],
-    redirect_uri=f'{BACKEND_URL}/login/callback'
-)
+# flow = Flow.from_client_secrets_file(
+#     client_secrets_file=client_secrets_file,
+#     scopes=[
+#         'https://www.googleapis.com/auth/userinfo.profile',
+#         'https://www.googleapis.com/auth/userinfo.email',
+#         'openid'],
+#     redirect_uri=f'{BACKEND_URL}/login/callback'
+# )
 
 
 def login_required(function):
@@ -101,86 +103,120 @@ def Generate_JWT(payload):
     return encoded_jwt
 
 
-@app.route('/api/v1/login/callback')
-def callback():
-    """Get auth code sent back from Google and get token"""
-    flow.fetch_token(authorization_response=request.url)
-    credentials = flow.credentials
-    request_session = requests.session()
-    token_request = google.auth.transport.requests.Request(
-        session=request_session)
-
-    id_info = id_token.verify_oauth2_token(
-        id_token=credentials._id_token,
-        request=token_request,
-        audience=GOOGLE_CLIENT_ID,
-        clock_skew_in_seconds=3
-    )
-    session['google_id'] = id_info.get('sub')
-
-    del id_info['aud']
-    jwt_token = Generate_JWT(id_info)
-
-    user_id = id_info.get('sub')
-    user_name = id_info.get('name')
-    user_email = id_info.get('email')
-    user_picture = id_info.get('picture')
-    user = storage.get(User, user_id)
-
-    if user is None:
-        new_user = User(
-            id=user_id,
-            name=user_name,
-            email=user_email,
-            profile_pic=user_picture
-        )
-        storage.new(new_user)
-        storage.save()
-    # return redirect(f'{FRONTEND_URL}?jwt={jwt_token}')
-    return jsonify({'JWT': jwt_token}), 200
-
-
-@app.route('/api/v1/auth/google')
+@app.route('/api/v1/auth/login', methods=['POST'])
 def login():
-    """Get Google's authorization url and store the state so that
-    the callback can verify the auth server response
-    """
-    authorization_url, state = flow.authorization_url()
-    session['state'] = state
-    return jsonify({'auth_url': authorization_url}), 200
+    auth_code = request.get_json()['code']
+
+    data = {
+        'code': auth_code,
+        'client_id': GOOGLE_CLIENT_ID,
+        'client_secret': GOOGLE_CLIENT_SECRET,
+        'redirect_uri': 'postmessage',
+        'grant_type': 'authorization_code'
+    }
+
+    res = requests.post('https://oauth2.googleapis.com/token', data=data)
+
+    return jsonify(res.json()), 200
 
 
-@app.route('/api/v1/logout')
-def logout():
-    """Clear user's id from the flask session
-    """
-    # Don't forget to clear the localStorage from the frontend
-    session.clear()
-    return jsonify({'message': 'User successfully logged out'}), 202
+@app.route('/api/v1/auth/refresh', methods=['POST'])
+def refresh():
+    refresh_token = request.get_json()['code']
+
+    data = {
+        'refresh_token': refresh_token,
+        'client_id': GOOGLE_CLIENT_ID,
+        'client_secret': GOOGLE_CLIENT_SECRET,
+        'grant_type': 'refresh_token'
+    }
+
+    res = requests.post('https://oauth2.googleapis.com/token', data=data)
+
+    print('res: ', res.json())
+    return jsonify(res.json()), 200
 
 
-# A remplacer par la route User quand on la fera puis suppirmer celle la,
-# c'est juste pour tester
-# Euh, quoique… A voir quand j'aurai testé depuis React
-@app.route('/api/v1/home')
-@login_required
-def home_page_user():
-    # encoded_jwt = request.headers.get('Authorization').split('Bearer')[1]
-    # decoded_jwt = jwt.decode(
-    #     encoded_jwt, app.secret_key, algorithm=algorithm)
-    user = storage.get(User, session['google_id'])
-    if user is not None:
-        user_id = user.id
-        user_email = user.email
-        user_name = user.name
-        user_picture = user.profile_pic
+# @app.route('/api/v1/login/callback')
+# def callback():
+#     """Get auth code sent back from Google and get token"""
+#     flow.fetch_token(authorization_response=request.url)
+#     credentials = flow.credentials
+#     request_session = requests.session()
+#     token_request = google.auth.transport.requests.Request(
+#         session=request_session)
 
-    return jsonify({
-        'user_id': user_id,
-        'user_email': user_email,
-        'user_name': user_name,
-        'user_picture': user_picture
-    }), 200
+#     id_info = id_token.verify_oauth2_token(
+#         id_token=credentials._id_token,
+#         request=token_request,
+#         audience=GOOGLE_CLIENT_ID,
+#         clock_skew_in_seconds=3
+#     )
+#     session['google_id'] = id_info.get('sub')
+
+#     del id_info['aud']
+#     jwt_token = Generate_JWT(id_info)
+
+#     user_id = id_info.get('sub')
+#     user_name = id_info.get('name')
+#     user_email = id_info.get('email')
+#     user_picture = id_info.get('picture')
+#     user = storage.get(User, user_id)
+
+#     if user is None:
+#         new_user = User(
+#             id=user_id,
+#             name=user_name,
+#             email=user_email,
+#             profile_pic=user_picture
+#         )
+#         storage.new(new_user)
+#         storage.save()
+#     # return redirect(f'{FRONTEND_URL}?jwt={jwt_token}')
+#     return jsonify({'JWT': json.dumps(jwt_token)}), 200
+
+
+# @app.route('/api/v1/auth/google')
+# def login():
+#     """Get Google's authorization url and store the state so that
+#     the callback can verify the auth server response
+#     """
+#     authorization_url, state = flow.authorization_url()
+#     session['state'] = state
+#     return jsonify({'auth_url': authorization_url}), 200
+
+
+# @app.route('/api/v1/logout')
+# def logout():
+#     """Clear user's id from the flask session
+#     """
+#     # Don't forget to clear the localStorage from the frontend
+#     session.clear()
+#     return jsonify({'message': 'User successfully logged out'}), 202
+
+
+# # A remplacer par la route User quand on la fera puis suppirmer celle la,
+# # c'est juste pour tester
+# # Euh, quoique… A voir quand j'aurai testé depuis React
+# @app.route('/api/v1/home')
+# @login_required
+# def home_page_user():
+#     # encoded_jwt = request.headers.get('Authorization').split('Bearer')[1]
+#     # decoded_jwt = jwt.decode(
+#     #     encoded_jwt, app.secret_key, algorithm=algorithm)
+#     user = storage.get(User, session['google_id'])
+#     if user is not None:
+#         user_id = user.id
+#         user_email = user.email
+#         user_name = user.name
+#         user_picture = user.profile_pic
+
+#     return jsonify({
+#         'user_id': user_id,
+#         'user_email': user_email,
+#         'user_name': user_name,
+#         'user_picture': user_picture
+#     }), 200
 
 
 if __name__ == "__main__":
