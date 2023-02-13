@@ -12,6 +12,7 @@ from flask import Flask, abort, jsonify, redirect, request, session
 import google
 from google.oauth2 import id_token
 from google_auth_oauthlib.flow import Flow
+from google.auth.transport import requests as google_requests
 import json
 import jwt
 from oauthlib.oauth2 import WebApplicationClient
@@ -117,10 +118,36 @@ def login():
 
     res = requests.post('https://oauth2.googleapis.com/token', data=data)
 
-    return jsonify(res.json()), 200
+    id_info = id_token.verify_oauth2_token(
+        res.data.id_token, google_requests.Request(), GOOGLE_CLIENT_ID)
+    user_id = id_info.get('sub')
+    user_name = id_info.get('name')
+    user_email = id_info.get('email')
+    user_picture = id_info.get('picture')
+
+    found = storage.get(User, user_id)
+
+    if found is None:
+        new_user = User(
+            id=user_id,
+            name=user_name,
+            email=user_email,
+            profile_pic=user_picture
+        )
+        storage.new(new_user)
+        storage.save()
+
+    return jsonify({
+        'id': user_id,
+        'name': user_name,
+        'email': user_email,
+        'profile_pic': user_picture,
+        'access_token': res.data.access_token,
+        'refresh_token': res.data.refresh_token
+    }), 200
 
 
-@app.route('/api/v1/auth/refresh', methods=['POST'])
+@ app.route('/api/v1/auth/refresh', methods=['POST'])
 def refresh():
     refresh_token = request.get_json()['code']
 
