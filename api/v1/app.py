@@ -116,10 +116,11 @@ def login():
         'grant_type': 'authorization_code'
     }
 
-    res = requests.post('https://oauth2.googleapis.com/token', data=data)
+    res = requests.post(
+        'https://oauth2.googleapis.com/token', data=data).json()
 
     id_info = id_token.verify_oauth2_token(
-        res.data.id_token, google_requests.Request(), GOOGLE_CLIENT_ID)
+        res['id_token'], google_requests.Request(), GOOGLE_CLIENT_ID)
     user_id = id_info.get('sub')
     user_name = id_info.get('name')
     user_email = id_info.get('email')
@@ -137,14 +138,14 @@ def login():
         storage.new(new_user)
         storage.save()
 
-    return jsonify({
-        'id': user_id,
-        'name': user_name,
-        'email': user_email,
-        'profile_pic': user_picture,
-        'access_token': res.data.access_token,
-        'refresh_token': res.data.refresh_token
-    }), 200
+    return jsonify(
+        id=user_id,
+        name=user_name,
+        email=user_email,
+        profile_pic=user_picture,
+        access_token=res['access_token'],
+        refresh_token=res['refresh_token']
+    ), 200
 
 
 @ app.route('/api/v1/auth/refresh', methods=['POST'])
