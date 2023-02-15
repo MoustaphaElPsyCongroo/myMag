@@ -103,7 +103,7 @@ def login_required(f):
             return jsonify({
                 'error': 'Unauthorized'
             }), 401
-        return f(token, *args, **kwargs)
+        return f(token, found, *args, **kwargs)
     return decorated_function
 
 

@@ -7,16 +7,14 @@ from api.v1.views import app_views
 from flask_cors import CORS
 from flasgger import Swagger
 from flask import Flask, jsonify
-from google_auth_oauthlib.flow import Flow
 
 app = Flask(__name__)
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 app.url_map.strict_slashes = False
 app.register_blueprint(app_views)
 app.secret_key = os.urandom(24)
-# cors = CORS(app, resources={r"/api/v1/*": {"origins": "*"}})
+cors = CORS(app, resources={r"/api/v1/*": {"origins": "*"}})
 CORS(app)
-# app.config['CORS_HEADERS'] = 'Content-Type'
 
 
 @app.teardown_appcontext
