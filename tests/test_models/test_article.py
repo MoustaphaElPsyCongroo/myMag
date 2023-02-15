@@ -98,7 +98,8 @@ class TestArticle(unittest.TestCase):
         new_d = ar.to_dict()
         self.assertEqual(type(new_d), dict)
         for attr in ar.__dict__:
-            self.assertTrue(attr in new_d)
+            if attr != '_sa_instance_state':
+                self.assertTrue(attr in new_d)
         self.assertTrue("__class__" in new_d)
 
     def test_str(self):
