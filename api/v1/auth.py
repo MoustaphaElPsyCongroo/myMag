@@ -44,7 +44,6 @@ def get_expired_token_user(refresh_token):
     res = res.json()
 
     new_token = res['id_token']
-    print('new token?: ', new_token)
     try:
         id_info = id_token.verify_oauth2_token(
             new_token,

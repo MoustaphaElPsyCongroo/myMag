@@ -46,6 +46,8 @@ class BaseModel:
         """Returns a dictionary containing all key/values of the instance"""
         new_dict = self.__dict__.copy()
         new_dict['__class__'] = self.__class__.__name__
+        if '_sa_instance_state' in new_dict:
+            del new_dict['_sa_instance_state']
         return new_dict
 
     def delete(self):
