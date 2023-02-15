@@ -12,7 +12,7 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     const checkLoggedIn = () => {
       let cuser = isAuthenticated();
-      console.log('UserContext avant', cuser);
+
       if (cuser === null) {
         console.log('type au moment de setUser dans UserContext', typeof cuser);
         localStorage.setItem('user', '');
@@ -31,7 +31,7 @@ export const UserProvider = ({ children }) => {
 
   return (
     <UserContext.Provider value={[currentUser, setCurrentUser]}>
-      {currentUser?.access_token ? <LogOut /> : <LogIn />}
+      {currentUser?.id_token ? <LogOut /> : <LogIn />}
     </UserContext.Provider>
   );
 };

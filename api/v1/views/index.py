@@ -1,24 +1,25 @@
 #!/usr/bin/python3
 """Index for general API info"""
-from models.article import Article
 from models.feed import Feed
 from models.tag import Tag
 from models.user import User
 from models import storage
 from api.v1.views import app_views
+from api.v1.auth import login_required
 from flask import jsonify
-from flask_login import login_required
 
 
 @app_views.route('/status', methods=['GET'])
 @login_required
-def status():
+def status(user_token):
     """Status of the API"""
-    return jsonify({'status': 'OK'})
+    return jsonify({
+        'status': 'OK',
+        'user_token': user_token
+    })
 
 
 @app_views.route('/stats', methods=['GET'])
-@login_required
 def number_objects():
     """Retrieves the number of each object by type"""
     classes = [Feed, Tag, User]

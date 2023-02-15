@@ -9,9 +9,6 @@ const LogOut = () => {
     setCurrentUser({});
   };
 
-  console.log('LogOut ', currentUser);
-
-
   return (
     <div>
       <img src={currentUser.profile_pic} alt='Profile picture' />
