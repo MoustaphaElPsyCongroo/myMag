@@ -86,6 +86,11 @@ class DBStorage:
                 return obj
         return None
 
+    def query(self, cls):
+        """Queries the database session for further treatment"""
+        query_obj = self.__session.query(cls)
+        return query_obj
+
     def count(self, cls=None):
         """Counts the number of objects in storage"""
         if cls is not None:

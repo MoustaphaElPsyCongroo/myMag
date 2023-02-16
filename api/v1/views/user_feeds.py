@@ -34,9 +34,31 @@ def subscribe_user_to_feed(user_id):
             feed_id = req.get('feed_id')
             feed = storage.get(Feed, feed_id)
             if feed is None:
-                abort(400, description="This feed doesn't exist in database")
+                abort(404, description="This feed doesn't exist in database")
             user.user_feeds.append(feed)
             storage.save()
     except ValueError:
         abort(400, description='Not a JSON')
     return jsonify(feed.to_dict()), 200
+
+
+@app_views.route('/users/<user_id>/feeds/<feed_id>', methods=['DELETE'])
+def unsubscribe_user_from_feed(user_id, feed_id):
+    """Make a user unsubscribe from a feed in database"""
+    user = storage.get(User, user_id)
+    if user is None:
+        abort(404)
+
+    feed = storage.get(Feed, feed_id)
+    if feed is None:
+        abort(404)
+
+    try:
+        if feed not in user.user_feeds:
+            abort(400, description="This feed doesn't exist in database")
+        else:
+            user.user_feeds.remove(feed)
+            storage.save()
+    except ValueError:
+        abort(400, description='Not a JSON')
+    return {}, 200
