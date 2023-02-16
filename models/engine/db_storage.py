@@ -86,9 +86,9 @@ class DBStorage:
                 return obj
         return None
 
-    def query(self, cls):
+    def query(self, *args):
         """Queries the database session for further treatment"""
-        query_obj = self.__session.query(cls)
+        query_obj = self.__session.query(*args)
         return query_obj
 
     def count(self, cls=None):

@@ -45,8 +45,7 @@ def import_feed():
             if 'image' in f.feed and 'href' in f.feed.image:
                 feed['banner_img'] = f.feed.image.href
 
-            if 'content' in f.entries[0]:
-                print('premier content: ', f.entries[0].content)
+            feed['language'] = f.feed.get('language', 'en')
 
             created = Feed(**feed)
             storage.new(created)
@@ -54,3 +53,25 @@ def import_feed():
             return jsonify(created.to_dict()), 201
     except ValueError:
         abort(400, description='Not a valid url')
+
+
+@app_views.route('/feeds/<feed_id>', methods=['PUT'])
+def update_feed(feed_id):
+    """UPDATE a feed's details"""
+    feed = storage.get(Feed, feed_id)
+    if feed is None:
+        abort(404)
+
+    try:
+        req = request.get_json()
+        if req is None:
+            abort(404, description='Not a JSON')
+        else:
+            invalid = ['id', 'user_id', 'created_at', 'updated_at']
+            for key, value in req.items():
+                if key not in invalid:
+                    setattr(feed, key, value)
+            storage.save()
+            return jsonify(feed.to_dict()), 200
+    except ValueError:
+        abort(400, description='Not a JSON')

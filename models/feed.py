@@ -15,6 +15,7 @@ class Feed(BaseModel, Base):
     name = Column(String(256), nullable=False)
     link = Column(String(2083), nullable=False)
     description = Column(String(1000), nullable=True)
+    language = Column(String(15), default='en', nullable=False)
     banner_img = Column(String(2083), nullable=True)
     etag = Column(String(1024), nullable=True)
     last_modified = Column(DateTime, nullable=True)

@@ -13,6 +13,7 @@ class Tag(BaseModel, Base):
     """Representation of a Tag"""
     __tablename__ = 'tags'
     name = Column(String(128), nullable=False)
+    type = Column(String(10), nullable=False)
     tag_article_associations = relationship(
         'TagArticleAssociation',
         back_populates='tag',

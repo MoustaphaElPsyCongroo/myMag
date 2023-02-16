@@ -173,7 +173,8 @@ class TestArticle(unittest.TestCase):
 
         assoc = TagArticleAssociation(confidence=0.95)
         assoc.tag = Tag(
-            name="TagName"
+            name="TagName",
+            type='Tag'
         )
 
         article.article_tag_associations.append(assoc)
