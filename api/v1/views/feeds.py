@@ -33,6 +33,15 @@ def import_feed():
 
             f = feedparser.parse(link)
 
+            # Check if the feed is permanently redirected
+            if f.status == 301:
+                link = f.href
+                f = feedparser.parse(link)
+
+            # Check if the feed is inactive
+            if f.status == 410:
+                abort(410, description='Feed is permanently inactive')
+
             if 'title' not in f.feed:
                 abort(400, description='Not a valid feed')
 
@@ -45,7 +54,7 @@ def import_feed():
             if 'image' in f.feed and 'href' in f.feed.image:
                 feed['banner_img'] = f.feed.image.href
 
-            feed['language'] = f.feed.get('language', 'en')
+            feed['language'] = f.feed.get('language', 'en').split('-')[0]
 
             created = Feed(**feed)
             storage.new(created)

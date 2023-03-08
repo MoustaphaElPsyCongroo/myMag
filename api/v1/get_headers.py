@@ -4,7 +4,6 @@ from decouple import config
 import requests
 import json
 
-# Save ce genre de variables dans un .env privé
 SCRAPEOPS_API_KEY = config('SCRAPEOPS_API_KEY')
 
 

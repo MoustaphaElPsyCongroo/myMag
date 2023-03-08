@@ -1,142 +1,46 @@
 #!/usr/bin/python3
-from api.v1.views import app_views
-from flask import jsonify, abort, request
-from google.cloud import language_v1
-from models import storage
-from models.article import Article
-from models.feed import Feed
-from models.tag import TagArticleAssociation, Tag
-import article_parser
 import feedparser
-import json
-from random import randint
-import re
-import yake
-from Levenshtein import ratio
-
-
-def get_random_header(header_list):
-    random_index = randint(0, len(header_list) - 1)
-    return header_list[random_index]
-
-
-def extract_article_content(url):
-    """Extract article content from url"""
-    try:
-        with open('headers.json', 'r', encoding='utf8') as f:
-            headers = json.load(f)
-    except Exception as e:
-        print('error: ', e)
-        return None
-
-    title, content = article_parser.parse(
-        url=url,
-        output="markdown",
-        timeout=5,
-        headers=get_random_header(headers))
-
-    # Remove all text between parenthesis (links)
-    content = re.sub(r"\([^)]*\)", "", content)
-
-    final_text = f'{title}. {content}'
-
-    return final_text[:1970]
-
-
-def extract_tags(content, lang):
-    """Extract tags from a string
-
-    Returns:
-        A list of tuples of (tag, confidence)
-    """
-    tags = []
-    invalid_tags = ['', 'Other']
-    all_tags_raw = []
-
-    client = language_v1.LanguageServiceClient()
-    type_ = language_v1.Document.Type.PLAIN_TEXT
-    document = {"content": content, "type_": type_}
-
-    content_categories_version = (
-        language_v1
-        .ClassificationModelOptions.V2Model.ContentCategoriesVersion.V2
-    )
-    response = client.classify_text(
-        request={
-            "document": document,
-            "classification_model_options": {
-                "v2_model":
-                    {"content_categories_version": content_categories_version}
-            },
-        }
-    )
-
-    for category in response.categories:
-        name_path = category.name
-        confidence = category.confidence
-        names = name_path.split('/')
-
-        for tag in names:
-            if tag not in invalid_tags and tag not in all_tags_raw:
-                tags.append((tag, confidence))
-            all_tags_raw.append(tag)
-
-    custom_kw_extractor = yake.KeywordExtractor(
-        lan=lang,
-        n=2,
-        dedupLim=0.9,
-        dedupFunc='seqm',
-        windowsSize=1,
-        top=15,
-        features=None)
-    tag_keywords = []
-    keywords = custom_kw_extractor.extract_keywords(content)[:3]
-
-    # Ce truc en-dessous est probablement un tuple d'un chractère, vérifier si
-    # j'ai une erreur
-
-    # Check the Levenshtein ratio of Yake's keywords against all keywords (not
-    # tags) already in database. If this ratio is > 0 with this score cutoff,
-    # we consider the two words the same keyword. Ex: révolutionner et
-    # révolution.
-    known_keywords = storage.query(Tag.name).filter(
-        Tag.type == 'keyword').all()
-    for keyword in known_keywords:
-        for kw in keywords:
-            kw_name = kw[0]
-            if ratio(keyword.lower(),
-                     kw_name.lower(),
-                     score_cutoff=0.65) > 0 and keyword not in tag_keywords:
-                tag_keywords.append(keyword)
-
-    if len(tag_keywords) == 0:
-        tag_keywords = keywords[:2]
-    tag_keywords = [(tag[0], None) for tag in tag_keywords]
-
-    for false_couples in tag_keywords:
-        tags.append(false_couples)
-
-    print(tags)
-    return tags
+from models.tag import TagArticleAssociation, Tag
+from models.feed import Feed
+from models.article import Article
+from models import storage
+from flask import jsonify, abort, request
+from time import mktime
+from datetime import datetime
+from api.v1.views import app_views
+from api.v1.utils import (
+    extract_article_content,
+    extract_tags,
+    get_new_entries_for_feed,
+    serialize_articles)
 
 
 @app_views.route('/feeds/<feed_id>/articles')
 def get_feed_articles(feed_id):
-    """GET all articles of a feed"""
+    """GET all stored articles of a feed"""
     feed = storage.get(Feed, feed_id)
-    return jsonify([article.to_dict() for article in feed.feed_articles]), 200
+    articles = serialize_articles(feed.feed_articles)
+    return jsonify(articles), 200
 
 
 @app_views.route('/feeds/<feed_id>/articles/fetch')
 def fetch_feed_new_articles(feed_id):
     """Get all new articles of a feed, or the ten first"""
     feed = storage.get(Feed, feed_id)
+    if not feed.active:
+        abort(410, description='Feed is permanently inactive')
+    if feed is None:
+        abort(404, description='No feed has this id')
     f = None
     entries = []
 
     # Feed has never been fetched
     if feed.etag is None and feed.last_modified is None:
         f = feedparser.parse(feed.link)
+        if 'etag' in f:
+            feed.etag = f.etag
+        elif 'modified' in f:
+            feed.last_modified = f.modified
     elif feed.etag:
         f = feedparser.parse(feed.link, etag=feed.etag)
     elif feed.last_modified:
@@ -144,10 +48,30 @@ def fetch_feed_new_articles(feed_id):
     else:
         abort(400, description='Invalid feed')
 
-    if feed.etag is None and feed.last_modified is None:
+    # Check if the feed has been permanently redirected
+    if f.status == 301:
+        feed.link = f.href
+        storage.save()
+
+    # Check if the feed is inactive
+    if f.status == 410:
+        feed.active = False
+        storage.save()
+        abort(410, description='Feed is permanently inactive')
+
+    if len(feed.feed_articles) == 0:
         entries = f.entries[:10]
-    else:
-        entries = f.entries
+    elif entries is not None and len(entries) > 0:
+        latest = storage.query(Article.publish_date).filter(
+            Article.feed_id == feed.id).order_by(
+            Article.publish_date.desc()).first()
+        entries = get_new_entries_for_feed(
+            f, latest[0])
+
+    if entries is None or len(entries) == 0:
+        return jsonify({
+            'message': 'No new articles'
+        }), 204
 
     for article in entries:
         properties = {}
@@ -155,14 +79,56 @@ def fetch_feed_new_articles(feed_id):
         properties['feed_id'] = feed_id
         try:
             properties['title'] = article.title
-            properties['publish_date'] = article.published_parsed
-        except KeyError as e:
-            abort(400, "Article missing required elements")
-        properties['description'] = article.get('summary', '')
+            # published_parsed is a Python 9-tuple that we need to convert
+            #  to a datetime object
+            if 'published_parsed' in article:
+                published_parsed = article.published_parsed
+            else:
+                published_parsed = article.updated_parsed
+            properties['publish_date'] = datetime.fromtimestamp(
+                mktime(published_parsed))
+        except Exception as e:
+            # abort(400, "Article missing required elements")
+            continue
+        properties['description'] = article.get('summary', '')[:1000]
 
-        content = extract_article_content(article.link)
+        content = f'{article.title}. {extract_article_content(article.link)}'
+        print('content before length: ', len(content))
+        if len(content) <= 500:
+            content = f"{content} {properties['description']}"
         print('text content: ', content)
-        tags_with_confidence = extract_tags(content, feed.language)
+        tags_with_confidence = extract_tags(
+            content, feed.language)
 
         # Maintenant qu'on a les tags, créer chaque tag dans la base de données
         # et ajouter l'article
+        created_article = Article(**properties)
+        tag_names = []
+        for tag_confidence_couple in tags_with_confidence:
+            tag_name = tag_confidence_couple[0]
+            tag_type = 'tag'
+            tag_confidence = tag_confidence_couple[1]
+            if tag_confidence_couple[1] is None:
+                tag_type = 'keyword'
+                tag_confidence = 0.00
+
+            assoc = TagArticleAssociation(confidence=tag_confidence)
+            assoc.tag = None
+            # print('tag_name: ', tag_name)
+            existing = storage.query(Tag).filter(Tag.name == tag_name).first()
+            if tag_name in tag_names:
+                continue
+            if existing is not None:
+                assoc.tag = existing
+            else:
+                new_tag = Tag(
+                    name=tag_name,
+                    type=tag_type
+                )
+                assoc.tag = new_tag
+                tag_names.append(tag_name)
+                storage.new(new_tag)
+            created_article.article_tag_associations.append(assoc)
+        storage.new(created_article)
+    storage.save()
+    return {}, 201

@@ -5,7 +5,6 @@ Holds the representation of a Tag
 
 from models.base_model import BaseModel, Base
 from sqlalchemy import Column, String, Integer, Float, ForeignKey
-from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
 
@@ -17,16 +16,16 @@ class Tag(BaseModel, Base):
     tag_article_associations = relationship(
         'TagArticleAssociation',
         back_populates='tag',
-        cascade='all, delete-orphan')
+        cascade='all, delete')
     tag_like_associations = relationship(
         'TagLikeAssociation',
         back_populates='tag',
-        cascade='all, delete-orphan'
+        cascade='all, delete'
     )
     tag_dislike_associations = relationship(
         'TagDislikeAssociation',
         back_populates='tag',
-        cascade='all, delete-orphan'
+        cascade='all, delete'
     )
 
     def __init__(self, *args, **kwargs):
