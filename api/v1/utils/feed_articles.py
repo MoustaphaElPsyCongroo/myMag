@@ -140,16 +140,18 @@ def get_new_entries_for_feed(feed_obj, last_update):
     return entries
 
 
+def serialize_article(article):
+    """Convert an article object into a dict, displaying tags"""
+    article_dict = article.to_dict()
+    article_dict['tags'] = []
+    for assoc in article.article_tag_associations:
+        tag_name = assoc.tag.name
+        tag_confidence = assoc.confidence
+        article_dict['tags'].append([tag_name, tag_confidence])
+    return article_dict
+
+
 def serialize_articles(articles):
-    """Convert article objects of a list into a list of dicts,
-      displaying tags"""
-    article_dicts = []
-    for article in articles:
-        article_dict = article.to_dict()
-        article_dict['tags'] = []
-        for assoc in article.article_tag_associations:
-            tag_name = assoc.tag.name
-            tag_confidence = assoc.confidence
-            article_dict['tags'].append([tag_name, tag_confidence])
-        article_dicts.append(article_dict)
-    return article_dicts
+    """Convert a list of articles to a list of dicts, displaying tags"""
+    articles_dicts = [serialize_article(article) for article in articles]
+    return articles_dicts
