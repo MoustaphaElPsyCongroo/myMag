@@ -31,7 +31,7 @@ class Article(BaseModel, Base):
     __tablename__ = 'articles'
     feed_id = Column(String(60), ForeignKey('feeds.id'), nullable=False)
     title = Column(String(256), nullable=False)
-    description = Column(String(1000), nullable=False)
+    description = Column(String(1000), default='', nullable=False)
     publish_date = Column(DateTime, nullable=False)
     shares = Column(Integer, default=0, nullable=False)
     article_liked_by = relationship(

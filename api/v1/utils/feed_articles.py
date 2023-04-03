@@ -6,10 +6,18 @@ from models.tag import Tag
 from random import randint
 from time import mktime
 import article_parser
+import html2text
 import json
 import re
 import yake
 from Levenshtein import ratio
+
+html_to_text = html2text.HTML2Text()
+html_to_text.ignore_links = True
+html_to_text.ignore_images = True
+html_to_text.images_to_alt = True
+html_to_text.ignore_tables = True
+html_to_text.ignore_emphasis = True
 
 
 def get_random_header(header_list):
@@ -28,17 +36,20 @@ def extract_article_content(url):
 
     title, content = article_parser.parse(
         url=url,
-        output="markdown",
+        output="html",
         timeout=5,
         headers=get_random_header(headers))
 
-    if len(content) <= 1000:
+    # print('raw content before extract: ', content)
+
+    try:
+        plain_content = html_to_text.handle(f'{content}')
+    except Exception as e:
+        print('Caught exception when extracting html: ', e)
         return ''
 
-    # Remove all text between parenthesis (links)
-    content = re.sub(r"\([^)]*\)", "", content)
-
-    return content[:1970]
+    # print('content after extract: ', content)
+    return plain_content[:1970]
 
 
 def extract_tags(content, lang):
