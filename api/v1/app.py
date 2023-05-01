@@ -3,7 +3,6 @@
 import os
 from decouple import config
 from models import storage
-from models.feed import Feed
 from api.v1.views import app_views
 from flask_cors import CORS
 from flasgger import Swagger
