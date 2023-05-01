@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 """Utility functions for article and tag extraction"""
 from datetime import datetime
-from exceptions import FeedInactiveError, FeedNotFoundError
+from api.v1.utils.exceptions import FeedInactiveError, FeedNotFoundError
 from google.cloud import language_v1
 from models import storage
 from models.article import Article
@@ -176,6 +176,7 @@ def fetch_articles(feed_id):
     if entries is None or len(entries) == 0:
         storage.save()
         return []
+    return entries
 
 
 def get_new_entries_for_feed(feed_obj, last_update):

@@ -3,11 +3,12 @@
 import os
 from decouple import config
 from models import storage
+from models.feed import Feed
 from api.v1.views import app_views
 from flask_cors import CORS
 from flasgger import Swagger
 from flask import Flask, jsonify
-from .cronjobs import populate_tags
+from api.v1.cronjobs import populate_tags
 
 app = Flask(__name__)
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
