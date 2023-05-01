@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+"""Routes for user_feeds relationships"""
 from api.v1.views import app_views
 from api.v1.auth import login_required
 from flask import jsonify, abort, request

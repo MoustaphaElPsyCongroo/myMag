@@ -7,13 +7,14 @@ from api.v1.views import app_views
 from flask_cors import CORS
 from flasgger import Swagger
 from flask import Flask, jsonify
+from .cronjobs import populate_tags
 
 app = Flask(__name__)
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 app.url_map.strict_slashes = False
 app.register_blueprint(app_views)
 app.secret_key = os.urandom(24)
-google_credentials = 'capable-hexagon-377213-0d91b9ba4e6d.json'
+google_credentials = config('GOOGLE_CREDENTIALS')
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = google_credentials
 cors = CORS(app, resources={r"/api/v1/*": {"origins": "*"}})
 CORS(app)
