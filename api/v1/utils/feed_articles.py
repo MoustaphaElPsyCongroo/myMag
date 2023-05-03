@@ -121,18 +121,17 @@ def extract_tags(full_content, trimmed_content, lang):
     for false_couples in tag_keywords:
         tags.append(false_couples)
 
-    print('all tags final: ', tags)
+    # print('all tags final: ', tags)
     return tags
 
 
-def fetch_articles(feed_id):
+def fetch_articles(feed):
     """Fetch all new articles of a feed, or the ten first if never fetched"""
-    feed = storage.get(Feed, feed_id)
     if not feed.active:
-        message = f'Feed {feed_id} is permanently inactive'
+        message = f'Feed {feed.id} is permanently inactive'
         raise FeedInactiveError(message)
     if feed is None:
-        message = f'No feed with id {feed_id} found'
+        message = f'No feed with id {feed.id} found'
         raise FeedNotFoundError(message)
     f = None
     entries = []
@@ -161,7 +160,7 @@ def fetch_articles(feed_id):
     if f.status == 410:
         feed.active = False
         storage.save()
-        message = f'Feed {feed_id} is permanently inactive'
+        message = f'Feed {feed.id} is permanently inactive'
         raise FeedInactiveError(message)
 
     if len(feed.feed_articles) == 0:
@@ -203,13 +202,13 @@ def get_random_header(header_list):
     return header_list[random_index]
 
 
-def parse_save_articles(entries, feed_id, language):
+def parse_save_articles(entries, feed):
     """Parse, extract tags and save in database a list of entries"""
     articles_added = 0
     for article in entries:
         properties = {}
 
-        properties['feed_id'] = feed_id
+        properties['feed_id'] = feed.id
         try:
             properties['title'] = article.title
             # published_parsed is a Python 9-tuple that we need to convert
@@ -235,11 +234,11 @@ def parse_save_articles(entries, feed_id, language):
                 properties['description'] = article.summary[:2000]
 
         content = f'{article.title}. {extract_article_content(article.link)}'
-        print('length content before: ', len(content))
+        # print('length content before: ', len(content))
         if len(content) <= 800:
             content = f"{article.title} {properties['description']}"
         tags_with_confidence = extract_tags(
-            content, content[:1970], language)
+            content, content[:1970], feed.language)
 
         # Now that we have the article's tags, create each Tag in database and
         # add the Article
@@ -272,6 +271,7 @@ def parse_save_articles(entries, feed_id, language):
         storage.new(created_article)
         storage.save()
         articles_added += 1
+    feed.updated_at = datetime.now()
     storage.save()
     return {
         'total new articles': len(entries),

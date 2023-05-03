@@ -7,7 +7,8 @@ from api.v1.views import app_views
 from flask_cors import CORS
 from flasgger import Swagger
 from flask import Flask, jsonify
-from api.v1.cronjobs import populate_tags
+import api.v1.cronjobs as cronjobs
+
 
 app = Flask(__name__)
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
@@ -18,6 +19,8 @@ google_credentials = config('GOOGLE_CREDENTIALS')
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = google_credentials
 cors = CORS(app, resources={r"/api/v1/*": {"origins": "*"}})
 CORS(app)
+
+# print(cronjobs.fetch_new_articles())
 
 
 @app.teardown_appcontext

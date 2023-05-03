@@ -18,7 +18,7 @@ class BaseModel:
     """Our baseline Database model from which all models will be derived"""
     id = Column(String(60), primary_key=True)
     created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=func.now())
+    updated_at = Column(DateTime, default=datetime.now)
 
     def __init__(self, *args, **kwargs):
         """Base model initialization"""
