@@ -274,6 +274,8 @@ def parse_save_articles(entries, feed):
     feed.updated_at = datetime.now()
     storage.save()
     return {
+        'feed': f'{feed.id}',
+        'articles per week': f'{feed.articles_per_week}',
         'total new articles': len(entries),
         'articles added': articles_added
     }

@@ -20,7 +20,7 @@ os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = google_credentials
 cors = CORS(app, resources={r"/api/v1/*": {"origins": "*"}})
 CORS(app)
 
-# print(cronjobs.fetch_new_articles())
+print(cronjobs.fetch_new_articles())
 
 
 @app.teardown_appcontext

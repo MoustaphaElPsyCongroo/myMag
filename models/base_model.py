@@ -43,11 +43,13 @@ class BaseModel:
         models.storage.save()
 
     def to_dict(self):
-        """Returns a dictionary containing all key/values of the instance"""
-        new_dict = self.__dict__.copy()
+        """Returns a dictionary containing all key/values of the instance
+        Excludes _sa_instance_state and all list instances (sqlalchemy
+        relationship objects) to make it jsonifyable
+        """
+        new_dict = {key: val for key, val in self.__dict__.items() if key !=
+                    '_sa_instance_state' and not isinstance(val, list)}
         new_dict['__class__'] = self.__class__.__name__
-        if '_sa_instance_state' in new_dict:
-            del new_dict['_sa_instance_state']
         return new_dict
 
     def delete(self):
