@@ -6,6 +6,7 @@ from datetime import timedelta, datetime
 from models.tag import Tag
 from models.feed import Feed
 from models import storage
+from time import sleep
 
 
 def fetch_new_articles():
@@ -16,6 +17,9 @@ def fetch_new_articles():
     # Fetch articles only if the feed is active and has followers
     feeds = storage.query(Feed).filter(
         Feed.active.is_(True), Feed.feed_users.any()).all()
+
+    articles_fetched_this_minute = 0
+    fetching_start = datetime.now()
 
     for feed in feeds:
         time_since_last_update = datetime.now() - feed.updated_at
@@ -57,7 +61,7 @@ def fetch_new_articles():
         ]
 
         if any(update_rules):
-            print("It's been more than 10 minutes")
+            # print("It's been more than 10 minutes")
             try:
                 articles = fetch_articles(feed)
             except FeedInactiveError:
@@ -66,7 +70,24 @@ def fetch_new_articles():
             except FeedNotFoundError:
                 continue
             else:
-                print(parse_save_articles(articles, feed))
+                # Prevent fetching more than 570 articles per minute, to
+                # prevent hitting Google NLP API's rate limit (of 600).
+                if (
+                    articles_fetched_this_minute > 570
+                    and datetime.now() - fetching_start < timedelta(minutes=1)
+                ):
+                    sleep(60)
+                elif datetime.now() - fetching_start > timedelta(minutes=1):
+                    articles_fetched_this_minute = 0
+                    fetching_start = datetime.now()
+
+                feed_article_save_status = parse_save_articles(articles, feed)
+                print(feed_article_save_status)
+                articles_added = feed_article_save_status['articles added']
+                articles_fetched_this_minute += articles_added
+                print('articles fetched this minute: ',
+                      articles_fetched_this_minute)
+
         else:
-            print('It has not been more than 10 minutes')
+            # print('It has not been more than 10 minutes')
             continue

@@ -220,6 +220,7 @@ def parse_save_articles(entries, feed):
             properties['publish_date'] = datetime.fromtimestamp(
                 mktime(published_parsed))
         except Exception as e:
+            print(e)
             continue
 
         if 'summary' in article:
@@ -237,8 +238,13 @@ def parse_save_articles(entries, feed):
         # print('length content before: ', len(content))
         if len(content) <= 800:
             content = f"{article.title} {properties['description']}"
-        tags_with_confidence = extract_tags(
-            content, content[:1970], feed.language)
+
+        try:
+            tags_with_confidence = extract_tags(
+                content, content[:1970], feed.language)
+        except Exception as e:
+            print(e)
+            continue
 
         # Now that we have the article's tags, create each Tag in database and
         # add the Article
