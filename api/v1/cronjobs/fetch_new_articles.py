@@ -8,18 +8,6 @@ from models import storage
 from sqlalchemy import or_
 from time import sleep
 
-# """
-# Update rules:
-# - 0 articles per week (value never calculated, new feed): check feed
-# every 10 minutes. Will stay 0 for at most 1 day
-# - >= 300 articles per week: check feed every 10 minutes
-# - between 150 - 299 articles per week: check feed every 30 minutes
-# - between 90 - 149 articles per week: check feed every hour
-# - between 30 - 89 articles per week: check feed every two hours
-# - between 6 - 29 articles per week: check feed every 3 hours
-# - between 1 - 5 articles per week: check feed once per day.
-# """
-
 
 def fetch_new_articles():
     """Poll each feed in database for new articles,
