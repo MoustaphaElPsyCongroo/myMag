@@ -5,8 +5,7 @@ from flask import jsonify, abort, request
 from models import storage
 from models.feed import Feed
 from models.user import User
-from api.v1.utils import (
-    serialize_articles)
+from api.v1.utils.feed_articles import serialize_articles
 
 
 @app_views.route('/users/<user_id>/articles')

@@ -4,7 +4,7 @@ from models.feed import Feed
 from models import storage
 from flask import jsonify
 from api.v1.views import app_views
-from api.v1.utils import serialize_articles
+from api.v1.utils.feed_articles import serialize_articles
 
 
 @app_views.route('/feeds/<feed_id>/articles')

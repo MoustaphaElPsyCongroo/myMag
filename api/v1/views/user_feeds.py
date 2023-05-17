@@ -2,7 +2,7 @@
 """Routes for user_feeds relationships"""
 from api.v1.views import app_views
 from api.v1.auth import login_required
-from api.v1.utils import fetch_articles, parse_save_articles
+from api.v1.utils.feed_articles import fetch_articles, parse_save_articles
 from api.v1.utils.exceptions import FeedInactiveError, FeedNotFoundError
 from flask import jsonify, abort, request
 from models import storage
