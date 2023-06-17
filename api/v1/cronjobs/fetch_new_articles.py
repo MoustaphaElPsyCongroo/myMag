@@ -40,11 +40,11 @@ def fetch_new_articles():
         or_(
             (
                 (Feed.articles_per_week == 0) &
-                (Feed.updated_at < ten_minutes_ago)
+                (Feed.updated_at <= ten_minutes_ago)
             ),
             (
                 (Feed.articles_per_week >= 300) &
-                (Feed.updated_at < ten_minutes_ago)
+                (Feed.updated_at <= ten_minutes_ago)
             ),
             (
                 (Feed.articles_per_week >= 150) &
@@ -108,3 +108,4 @@ def fetch_new_articles():
             articles_fetched_this_minute += articles_added
             print('articles fetched this minute: ',
                   articles_fetched_this_minute)
+    print('Every feed is up to date!')

@@ -271,8 +271,8 @@ def parse_save_articles(entries, feed):
                     type=tag_type
                 )
                 assoc.tag = new_tag
-                tag_names.append(tag_name)
                 storage.new(new_tag)
+            tag_names.append(tag_name)
             created_article.article_tag_associations.append(assoc)
         storage.new(created_article)
         storage.save()

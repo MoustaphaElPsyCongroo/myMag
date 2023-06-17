@@ -1,9 +1,11 @@
 #!/usr/bin/python3
 """Flask Application"""
 import os
+from datetime import datetime
 from decouple import config
 from models import storage
 from api.v1.views import app_views
+from apscheduler.schedulers.background import BackgroundScheduler
 from flask_cors import CORS
 from flasgger import Swagger
 from flask import Flask, jsonify
@@ -20,7 +22,17 @@ os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = google_credentials
 cors = CORS(app, resources={r"/api/v1/*": {"origins": "*"}})
 CORS(app)
 
-print(cronjobs.fetch_new_articles())
+job_defaults = {
+    'misfire_grace_time': None,
+    'coalesce': True,
+    'max_instances': 3
+}
+scheduler = BackgroundScheduler(job_defaults=job_defaults)
+scheduler.add_job(cronjobs.fetch_new_articles, 'interval',
+                  minutes=10, next_run_time=datetime.now())
+
+scheduler.start()
+# print(cronjobs.fetch_new_articles())
 
 
 @app.teardown_appcontext
@@ -49,6 +61,7 @@ app.config['SWAGGER'] = {
     'uiversion': 3
 }
 
+# TODO: Add Swagger compatibility and documentation for all routes
 Swagger(app)
 
 
