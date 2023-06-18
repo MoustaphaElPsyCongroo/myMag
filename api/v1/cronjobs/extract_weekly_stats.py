@@ -33,6 +33,7 @@ def extract_weekly_stats():
         calc_articles_of_week(feed, articles_of_week)
         if articles_of_week and feed.created_at >= five_days_ago:
             calc_avg_shares_of_week(feed, articles_of_week)
+        storage.save()
     storage.close()
 
 
@@ -50,7 +51,7 @@ def calc_articles_of_week(feed, articles_of_week):
     elif feed.created_at >= five_days_ago:
         feed.articles_per_week = len(articles_of_week) * 5
     else:
-        feed.articles_per_week = len(articles_of_week)
+        feed.articles_per_week = len(articles_of_week) * 5
 
 
 def calc_avg_shares_of_week(feed, articles_of_week):
@@ -63,4 +64,4 @@ def calc_avg_shares_of_week(feed, articles_of_week):
 
 def filter_articles_of_week(article):
     """Filter out articles that are older than a week"""
-    return True if article.updated_at <= one_week_ago else False
+    return True if article.publish_date <= one_week_ago else False
