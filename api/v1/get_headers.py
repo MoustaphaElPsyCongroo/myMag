@@ -15,12 +15,12 @@ def get_headers_list():
             url='http://headers.scrapeops.io/v1/browser-headers',
             params={
                 'api_key': SCRAPEOPS_API_KEY,
-                'num_headers': '50'
+                'num_results': '30'
             })
     except Exception as e:
         return []
     json_response = response.json()
-    return json_response.get('result', [])
+    return json_response.get('result')
 
 
 headers = get_headers_list()

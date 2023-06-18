@@ -28,6 +28,7 @@ job_defaults = {
     'max_instances': 3
 }
 scheduler = BackgroundScheduler(job_defaults=job_defaults)
+scheduler.add_job(cronjobs.get_random_header_list, 'cron', month=1, hour=0)
 scheduler.add_job(cronjobs.fetch_new_articles, 'interval',
                   minutes=10, next_run_time=datetime.now())
 scheduler.add_job(cronjobs.extract_weekly_stats, 'cron', hour=0)

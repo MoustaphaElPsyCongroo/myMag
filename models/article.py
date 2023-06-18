@@ -43,7 +43,8 @@ class Article(BaseModel, Base):
     )
     article_tag_associations = relationship(
         'TagArticleAssociation',
-        back_populates='article')
+        back_populates='article',
+        cascade='delete')
 
     def __init__(self, *args, **kwargs):
         """Initializes the Article model"""

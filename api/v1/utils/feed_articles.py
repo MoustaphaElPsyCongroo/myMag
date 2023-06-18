@@ -34,11 +34,15 @@ def extract_article_content(url):
         print('error: ', e)
         return ''
 
-    title, content = article_parser.parse(
-        url=url,
-        output="html",
-        timeout=5,
-        headers=get_random_header(headers))
+    try:
+        title, content = article_parser.parse(
+            url=url,
+            output="html",
+            timeout=5,
+            headers=get_random_header(headers))
+    except Exception as e:
+        print('Caught exception when parsing with article parser: ', e)
+        content = ''
 
     try:
         plain_content = html_to_text.handle(f'{content}')
@@ -238,6 +242,7 @@ def parse_save_articles(entries, feed):
         # print('length content before: ', len(content))
         if len(content) <= 800:
             content = f"{article.title} {properties['description']}"
+        # print(content)
 
         try:
             tags_with_confidence = extract_tags(

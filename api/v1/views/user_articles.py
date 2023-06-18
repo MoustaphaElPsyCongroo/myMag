@@ -21,6 +21,8 @@ def get_user_articles(user_id):
         for article in feed_articles:
             article['feed_name'] = feed.name
             article['feed_banner_img'] = feed.banner_img
+            article['feed_articles_per_week'] = feed.articles_per_week
+            article['feed_avg_shares_per_week'] = feed.average_shares_per_week
             articles.append(article)
 
     return jsonify(articles), 200

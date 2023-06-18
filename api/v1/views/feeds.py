@@ -85,3 +85,15 @@ def update_feed(feed_id):
             return jsonify(feed.to_dict()), 200
     except ValueError:
         abort(400, description='Not a JSON')
+
+
+@app_views.route('/feeds/<feed_id>', methods=['DELETE'])
+def delete_feed(feed_id):
+    """DELETE a feed from db"""
+    feed = storage.get(Feed, feed_id)
+    if feed is None:
+        abort(404)
+    else:
+        storage.delete(feed)
+        storage.save()
+        return {}, 200

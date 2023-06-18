@@ -1,0 +1,10 @@
+Actually save extracted weekly stats in db
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# On branch api_routes
+# Your branch is up to date with 'origin/api_routes'.
+#
+# Changes to be committed:
+#	modified:   api/v1/cronjobs/extract_weekly_stats.py
+#
