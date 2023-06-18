@@ -23,7 +23,8 @@ def get_user_feeds(user_id):
 
 @app_views.route('/users/<user_id>/feeds', methods=['POST'])
 def subscribe_user_to_feed(user_id):
-    """Make a user subscribe to a feed in database"""
+    """Make a user subscribe to a feed in database, fetching articles for it if
+    first subscriber"""
     user = storage.get(User, user_id)
     if user is None:
         abort(404)
@@ -40,7 +41,7 @@ def subscribe_user_to_feed(user_id):
             if feed is None:
                 abort(404, description="This feed doesn't exist in database")
 
-            # if the feed has no user, fetch its 10 first articles first
+            # if the feed has no user, fetch its articles first
             if not feed.feed_users:
                 try:
                     articles = fetch_articles(feed)

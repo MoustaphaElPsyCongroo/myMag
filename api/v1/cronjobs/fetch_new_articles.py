@@ -109,3 +109,4 @@ def fetch_new_articles():
             print('articles fetched this minute: ',
                   articles_fetched_this_minute)
     print('Every feed is up to date!')
+    storage.close()

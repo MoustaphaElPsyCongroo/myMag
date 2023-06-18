@@ -30,9 +30,8 @@ job_defaults = {
 scheduler = BackgroundScheduler(job_defaults=job_defaults)
 scheduler.add_job(cronjobs.fetch_new_articles, 'interval',
                   minutes=10, next_run_time=datetime.now())
-
+scheduler.add_job(cronjobs.extract_weekly_stats, 'cron', hour=0)
 scheduler.start()
-# print(cronjobs.fetch_new_articles())
 
 
 @app.teardown_appcontext

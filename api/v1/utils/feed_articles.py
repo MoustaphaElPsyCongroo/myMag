@@ -139,10 +139,6 @@ def fetch_articles(feed):
     # Feed has never been fetched or doesn't support etag/last_modified headers
     if feed.etag is None and feed.last_modified is None:
         f = feedparser.parse(feed.link)
-        if 'etag' in f:
-            feed.etag = f.etag
-        if 'modified' in f:
-            feed.last_modified = f.modified
     elif feed.etag and feed.last_modified:
         f = feedparser.parse(feed.link, etag=feed.etag,
                              modified=feed.last_modified)
@@ -150,6 +146,10 @@ def fetch_articles(feed):
         f = feedparser.parse(feed.link, etag=feed.etag)
     elif feed.last_modified:
         f = feedparser.parse(feed.link, modified=feed.last_modified)
+    if 'etag' in f:
+        feed.etag = f.etag
+    if 'modified' in f:
+        feed.last_modified = f.modified
 
     # Check if the feed has been permanently redirected
     if f.status == 301:
