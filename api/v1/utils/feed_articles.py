@@ -3,6 +3,7 @@
 from datetime import datetime
 from api.v1.utils.exceptions import FeedInactiveError, FeedNotFoundError
 from google.cloud import language_v1
+from Levenshtein import ratio
 from models import storage
 from models.article import Article
 from models.feed import Feed
@@ -15,7 +16,6 @@ import html2text
 import json
 import re
 import yake
-from Levenshtein import ratio
 
 html_to_text = html2text.HTML2Text()
 html_to_text.ignore_links = True
@@ -93,11 +93,11 @@ def extract_tags(full_content, trimmed_content, lang):
 
     custom_kw_extractor = yake.KeywordExtractor(
         lan=lang,
-        n=2,
+        n=4,
         dedupLim=0.9,
         dedupFunc='seqm',
         windowsSize=1,
-        top=15,
+        top=20,
         features=None)
     tag_keywords = []
     keywords = custom_kw_extractor.extract_keywords(full_content)
@@ -105,19 +105,27 @@ def extract_tags(full_content, trimmed_content, lang):
     # Check the Levenshtein ratio of Yake's keywords against all keywords (not
     # tags) already in database. If this ratio is > 0 with this score cutoff,
     # we consider the two words the same keyword. Ex: révolutionner/révolution.
-    known_keywords = storage.query(Tag.name).filter(
+    known_keywords_raw = storage.query(Tag.name).filter(
         Tag.type == 'keyword').all()
-
-    # Keyword in known_keywords is a one char tuple, so keyword[0]
+    # Keyword in known_keywords is a one char tuple due to selecting a single
+    # SQL column, so keyword[0]
+    known_keywords = [keyword[0] for keyword in known_keywords_raw]
     keywords = [kw[0] for kw in keywords]
-    for keyword in known_keywords:
-        for kw in keywords:
-            if ratio(keyword[0].lower(),
-                     kw.lower(),
-                     score_cutoff=0.65) > 0 and keyword[0] not in tag_keywords:
+    for kw in keywords:
+        if kw in known_keywords:
+            tag_keywords.append(kw)
+            print('keyword existed in db as is:', kw)
+            continue
+        for keyword in known_keywords:
+            if (
+                ratio(keyword, kw, score_cutoff=0.75) > 0
+                and keyword not in tag_keywords
+            ):
                 tag_keywords.append(keyword[0])
+                print('keyword from yake:', kw)
+                print('accepted keyword from db:', keyword[0])
 
-    if len(tag_keywords) == 0:
+    if len(tag_keywords) == 0 and len(full_content) >= 1000:
         tag_keywords = keywords[:2]
 
     tag_keywords = [(tag, None) for tag in tag_keywords]
@@ -126,6 +134,8 @@ def extract_tags(full_content, trimmed_content, lang):
         tags.append(false_couples)
 
     # print('all tags final: ', tags)
+    print('all keywords:', keywords)
+    print('tag_keywords:', tag_keywords)
     return tags
 
 

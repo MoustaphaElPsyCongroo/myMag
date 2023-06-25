@@ -71,7 +71,7 @@ def unsubscribe_user_from_feed(user_id, feed_id):
 
     try:
         if feed not in user.user_feeds:
-            abort(400, description="This feed doesn't exist in database")
+            abort(404, description="This user is not subscribed to this feed")
         else:
             user.user_feeds.remove(feed)
             storage.save()

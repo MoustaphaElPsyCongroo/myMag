@@ -11,7 +11,7 @@ def get_random_header_list():
     """Get new random headers from API and save them in headers.json"""
     headers = fetch_random_headers_list()
 
-    with open('headers.json', 'w') as f:
+    with open('headers.json', 'w', encoding='utf-8') as f:
         json.dump(headers, f)
 
 
