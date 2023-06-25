@@ -55,6 +55,11 @@ def import_feed():
             if 'image' in f.feed and 'href' in f.feed.image:
                 feed['banner_img'] = f.feed.image.href
 
+            if 'icon' in f.feed:
+                feed['icon'] = f.feed.icon
+            elif 'logo' in f.feed:
+                feed['icon'] = f.feed.logo
+
             feed['language'] = f.feed.get('language', 'en').split('-')[0]
 
             created = Feed(**feed)

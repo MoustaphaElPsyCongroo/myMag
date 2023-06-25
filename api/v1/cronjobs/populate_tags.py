@@ -9,8 +9,7 @@ from pytrends.request import TrendReq
 def populate_tags():
     """Add the tags from taglist.txt and current trends to the database"""
     tags_to_add = []
-    db_keywords = storage.query(Tag.name).filter(
-        Tag.type == 'keyword').all()
+    db_keywords = storage.query(Tag.name).all()
     trending_keywords = get_trends()
     taglist_keywords = get_taglist_keywords()
     all_keywords = trending_keywords + taglist_keywords
@@ -19,7 +18,7 @@ def populate_tags():
     for kw in all_keywords:
         for keyword in db_keywords:
             if (
-                ratio(keyword[0], kw, score_cutoff=0.75) > 0
+                ratio(keyword[0], kw, score_cutoff=0.85) > 0
             ):
                 break
         else:

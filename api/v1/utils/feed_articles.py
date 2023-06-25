@@ -14,7 +14,7 @@ import article_parser
 import feedparser
 import html2text
 import json
-import re
+import logging
 import yake
 
 html_to_text = html2text.HTML2Text()
@@ -30,8 +30,8 @@ def extract_article_content(url):
     try:
         with open('headers.json', 'r', encoding='utf8') as f:
             headers = json.load(f)
-    except Exception as e:
-        print('error: ', e)
+    except Exception:
+        logging.exception('error loading headers.json')
         return ''
 
     try:
@@ -40,14 +40,14 @@ def extract_article_content(url):
             output="html",
             timeout=5,
             headers=get_random_header(headers))
-    except Exception as e:
-        print('Caught exception when parsing with article parser: ', e)
+    except Exception:
+        logging.exception('Caught exception when parsing with article parser')
         content = ''
 
     try:
         plain_content = html_to_text.handle(f'{content}')
-    except Exception as e:
-        print('Caught exception when extracting html: ', e)
+    except Exception:
+        logging.exception('Caught exception when extracting html')
         return ''
 
     return plain_content
@@ -60,7 +60,8 @@ def extract_tags(full_content, trimmed_content, lang):
         A list of tuples of (tag, confidence)
     """
     tags = []
-    invalid_tags = ['', 'Other', 'span', 'span class', 'p', 'div', 'div class']
+    invalid_tags = ['', 'Other', 'span', 'span class',
+                    'p', 'div', 'div class', 'img alt', 'href']
     all_tags_raw = []
 
     client = language_v1.LanguageServiceClient()
@@ -102,40 +103,42 @@ def extract_tags(full_content, trimmed_content, lang):
     tag_keywords = []
     keywords = custom_kw_extractor.extract_keywords(full_content)
 
-    # Check the Levenshtein ratio of Yake's keywords against all keywords (not
-    # tags) already in database. If this ratio is > 0 with this score cutoff,
-    # we consider the two words the same keyword. Ex: révolutionner/révolution.
-    known_keywords_raw = storage.query(Tag.name).filter(
-        Tag.type == 'keyword').all()
+    # Check the Levenshtein ratio of Yake's keywords against all tags and
+    # keywords already in database. If this ratio is > 0 with this score
+    # cutoff, we consider the two words the same keyword.
+    # Ex: révolutionner/révolution.
+    known_tags_raw = storage.query(Tag.name).all()
     # Keyword in known_keywords is a one char tuple due to selecting a single
     # SQL column, so keyword[0]
-    known_keywords = [keyword[0] for keyword in known_keywords_raw]
+    known_tags = [keyword[0] for keyword in known_tags_raw]
     keywords = [kw[0] for kw in keywords]
     for kw in keywords:
-        if kw in known_keywords:
+        if kw in known_tags and kw not in tag_keywords:
             tag_keywords.append(kw)
-            print('keyword existed in db as is:', kw)
             continue
-        for keyword in known_keywords:
+        for keyword in known_tags:
             if (
-                ratio(keyword, kw, score_cutoff=0.75) > 0
+                ratio(keyword, kw, score_cutoff=0.85) > 0
                 and keyword not in tag_keywords
             ):
-                tag_keywords.append(keyword[0])
-                print('keyword from yake:', kw)
-                print('accepted keyword from db:', keyword[0])
+                tag_keywords.append(keyword)
+                # print('keyword from yake:', kw)
+                # print('accepted keyword from db:', keyword)
 
-    if len(tag_keywords) == 0 and len(full_content) >= 1000:
-        tag_keywords = keywords[:2]
+    # If no existing tag matched, add the two first ones that consist of two
+    # words or less if extracted content is long enough for tags to be relevant
+    if len(tag_keywords) == 0 and len(full_content) >= 800:
+        tag_keywords = [kw for kw in keywords if len(
+            kw.split(' ')) <= 2][:2]
 
     tag_keywords = [(tag, None) for tag in tag_keywords]
 
     for false_couples in tag_keywords:
         tags.append(false_couples)
 
-    # print('all tags final: ', tags)
     print('all keywords:', keywords)
-    print('tag_keywords:', tag_keywords)
+    # print('all tags final: ', tags)
+    # print('tag_keywords:', tag_keywords)
     return tags
 
 
@@ -233,20 +236,38 @@ def parse_save_articles(entries, feed):
                 published_parsed = article.updated_parsed
             properties['publish_date'] = datetime.fromtimestamp(
                 mktime(published_parsed))
-        except Exception as e:
-            print(e)
+        except Exception:
+            logging.exception()
             continue
 
-        if 'summary' in article:
+        properties['description'] = ''
+        if 'summary_detail' in article:
             if article.summary_detail.type != 'text/plain':
                 try:
                     description = html_to_text.handle(article.summary)
-                    properties['description'] = description[:2000]
+                    properties['description'] = description
                 except Exception as e:
-                    print('Caught exception when extracting html: ', e)
+                    logging.exception('Caught exception when extracting html')
                     properties['description'] = ''
             else:
-                properties['description'] = article.summary[:2000]
+                properties['description'] = article.summary
+
+        if 'content' in article:
+            for content in article.content:
+                if content.type != 'text/plain' or '<p>' in content.value:
+                    try:
+                        description = html_to_text.handle(content.value)
+                        properties['description'] += description
+                    except Exception:
+                        logging.exception(
+                            'Caught exception when extracting html')
+                        properties['description'] = ''
+                else:
+                    properties['description'] += content.value
+
+        if not properties['description']:
+            if 'summary' in article:
+                properties['description'] = article.summary
 
         content = f'{article.title}. {extract_article_content(article.link)}'
         # print('length content before: ', len(content))
@@ -254,11 +275,13 @@ def parse_save_articles(entries, feed):
             content = f"{article.title} {properties['description']}"
         # print(content)
 
+        properties['description'] = properties['description'][:2000]
+
         try:
             tags_with_confidence = extract_tags(
                 content, content[:1970], feed.language)
-        except Exception as e:
-            print(e)
+        except Exception:
+            logging.exception()
             continue
 
         # Now that we have the article's tags, create each Tag in database and
@@ -276,9 +299,10 @@ def parse_save_articles(entries, feed):
             assoc = TagArticleAssociation(confidence=tag_confidence)
             assoc.tag = None
             existing = storage.query(Tag).filter(Tag.name == tag_name).first()
-            if tag_name in tag_names:
+            if tag_name.lower() in tag_names:
                 continue
             if existing is not None:
+                print('tag exists in db:', tag_name)
                 assoc.tag = existing
             else:
                 new_tag = Tag(
@@ -287,7 +311,7 @@ def parse_save_articles(entries, feed):
                 )
                 assoc.tag = new_tag
                 storage.new(new_tag)
-            tag_names.append(tag_name)
+            tag_names.append(tag_name.lower())
             created_article.article_tag_associations.append(assoc)
         storage.new(created_article)
         storage.save()
