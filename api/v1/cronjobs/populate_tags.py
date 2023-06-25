@@ -40,11 +40,6 @@ def populate_tags():
         print('added new tags:', tags_to_add)
 
 
-def filter_existing_tag(tag):
-    """Filter out tags that already exist in db"""
-    return True if article.publish_date <= one_week_ago else False
-
-
 def get_trends():
     """Fetch Google trends' trending keywords for the day in us and fr"""
     us_pytrends = TrendReq(hl='en-US', tz=360)
