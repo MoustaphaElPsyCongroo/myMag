@@ -3,6 +3,7 @@
 from Levenshtein import ratio
 from models import storage
 from models.tag import Tag
+from models.article import Article
 from pytrends.request import TrendReq
 
 

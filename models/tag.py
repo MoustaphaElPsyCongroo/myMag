@@ -15,17 +15,14 @@ class Tag(BaseModel, Base):
     type = Column(String(10), nullable=False)
     tag_article_associations = relationship(
         'TagArticleAssociation',
-        back_populates='tag',
-        cascade='all, delete')
+        back_populates='tag')
     tag_like_associations = relationship(
         'TagLikeAssociation',
-        back_populates='tag',
-        cascade='all, delete'
+        back_populates='tag'
     )
     tag_dislike_associations = relationship(
         'TagDislikeAssociation',
-        back_populates='tag',
-        cascade='all, delete'
+        back_populates='tag'
     )
 
     def __init__(self, *args, **kwargs):
