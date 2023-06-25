@@ -6,7 +6,6 @@ from google.cloud import language_v1
 from Levenshtein import ratio
 from models import storage
 from models.article import Article
-from models.feed import Feed
 from models.tag import Tag, TagArticleAssociation
 from random import randint
 from time import mktime
