@@ -336,7 +336,17 @@ def serialize_article(article):
     return article_dict
 
 
-def serialize_articles(articles):
+def serialize_articles(articles, *args, **kwargs):
     """Convert a list of articles to a list of dicts, displaying tags"""
-    articles_dicts = [serialize_article(article) for article in articles]
+    read_articles = kwargs.get('read_articles')
+    only_unread = kwargs.get('only_unread')
+
+    if only_unread and read_articles:
+        articles_dicts = [serialize_article(
+            article) for article in articles if article not in read_articles]
+    elif only_unread is False and read_articles:
+        articles_dicts = [serialize_article(
+            article) for article in read_articles]
+    else:
+        articles_dicts = [serialize_article(article) for article in articles]
     return articles_dicts

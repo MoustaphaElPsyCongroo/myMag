@@ -16,7 +16,10 @@ def get_feeds():
 
 @app_views.route('/feeds', methods=['POST'])
 def import_feed():
-    """Import a feed into the database from its RSS url"""
+    """Import a feed into the database from its RSS url
+        body:
+            link: <link of the feed>
+    """
     feed = {}
     try:
         req = request.get_json()
@@ -72,7 +75,11 @@ def import_feed():
 
 @app_views.route('/feeds/<feed_id>', methods=['PUT'])
 def update_feed(feed_id):
-    """UPDATE a feed's details"""
+    """UPDATE a feed's details
+
+        body: <feed attribute to update>
+        invalid: id, created_at, updated_at
+    """
     feed = storage.get(Feed, feed_id)
     if feed is None:
         abort(404)

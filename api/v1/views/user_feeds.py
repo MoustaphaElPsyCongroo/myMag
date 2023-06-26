@@ -12,7 +12,7 @@ from models.user import User
 
 @app_views.route('/users/<user_id>/feeds')
 def get_user_feeds(user_id):
-    """GET current user's all feeds"""
+    """GET a user's all feeds"""
     user = storage.get(User, user_id)
     if user is None:
         abort(404)
@@ -24,10 +24,13 @@ def get_user_feeds(user_id):
 @app_views.route('/users/<user_id>/feeds', methods=['POST'])
 def subscribe_user_to_feed(user_id):
     """Make a user subscribe to a feed in database, fetching articles for it if
-    first subscriber"""
+    first subscriber
+        body:
+            feed_id: <feed_id>
+    """
     user = storage.get(User, user_id)
     if user is None:
-        abort(404)
+        abort(404, description="The specified user doesn't exist")
 
     try:
         req = request.get_json()
@@ -52,6 +55,7 @@ def subscribe_user_to_feed(user_id):
                 else:
                     parse_save_articles(articles, feed)
             user.user_feeds.append(feed)
+            print('feeds:', user.user_feeds)
             storage.save()
     except ValueError:
         abort(400, description='Not a JSON')

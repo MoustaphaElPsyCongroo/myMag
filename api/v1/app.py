@@ -10,6 +10,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from flask_cors import CORS
 from flasgger import Swagger
 from flask import Flask, jsonify
+from werkzeug.exceptions import HTTPException
 import api.v1.cronjobs as cronjobs
 
 
@@ -46,21 +47,10 @@ def close_db(error):
     storage.close()
 
 
-@app.errorhandler(404)
-def not_found(error):
-    """ 404 Error
-    ---
-    responses:
-      404:
-        description: a resource was not found
-    """
-    status = {
-        'error': 'Not found'
-    }
-
-    return jsonify(status), 404
-
-# TODO: Add other error handlers
+@app.errorhandler(HTTPException)
+def handle_http_exceptions(e):
+    """ Jsonify HTTP exceptions"""
+    return jsonify(error=str(e)), e.code
 
 
 app.config['SWAGGER'] = {
