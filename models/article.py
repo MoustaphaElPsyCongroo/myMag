@@ -34,6 +34,7 @@ class Article(BaseModel, Base):
     description = Column(String(2000), default='', nullable=False)
     publish_date = Column(DateTime, nullable=False)
     shares = Column(Integer, default=0, nullable=False)
+    article_feed = relationship('Feed', back_populates='feed_articles')
     article_liked_by = relationship(
         'User', secondary=liked_article, back_populates='liked_articles')
     article_disliked_by = relationship(
@@ -43,7 +44,8 @@ class Article(BaseModel, Base):
     )
     article_tag_associations = relationship(
         'TagArticleAssociation',
-        back_populates='article')
+        back_populates='article',
+        cascade="all, delete")
 
     def __init__(self, *args, **kwargs):
         """Initializes the Article model"""

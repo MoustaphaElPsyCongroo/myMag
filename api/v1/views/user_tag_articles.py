@@ -8,6 +8,20 @@ from models.user import User
 from api.v1.utils.feed_articles import serialize_articles
 
 
+@app_views.route('/users/<user_id>/articles/liked')
+def get_liked_articles(user_id):
+    """GET all liked articles from a user's subscribed feeds"""
+    user = storage.get(User, user_id)
+    if user is None:
+        abort(404, description="The specified user doesn't exist")
+
+    if not user.liked_articles:
+        abort(404, description="No liked articles yet")
+
+    liked_articles = serialize_articles(user.liked_articles)
+    return jsonify(liked_articles), 200
+
+
 @app_views.route('/users/<user_id>/articles/liked', methods=['POST'])
 def like_article(user_id):
     """Make a user like an article, incrementing its tags' likes count

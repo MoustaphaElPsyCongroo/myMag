@@ -26,7 +26,8 @@ class Feed(BaseModel, Base):
     feed_users = relationship(
         'User', secondary=user_feed, back_populates='user_feeds'
     )
-    feed_articles = relationship('Article', cascade='all, delete')
+    feed_articles = relationship(
+        'Article', back_populates="article_feed", cascade='all, delete')
 
     def __init__(self, *args, **kwargs):
         """Initializes the Feed model"""

@@ -102,11 +102,11 @@ def extract_tags(full_content, trimmed_content, lang):
     tag_keywords = []
     keywords = custom_kw_extractor.extract_keywords(full_content)
 
-    # Check the Levenshtein ratio of Yake's keywords against all tags and
-    # keywords already in database. If this ratio is > 0 with this score
-    # cutoff, we consider the two words the same keyword.
-    # Ex: révolutionner/révolution.
-    known_tags_raw = storage.query(Tag.name).all()
+    # Check the Levenshtein ratio of Yake's keywords against all keywords
+    # already in database. If this ratio is > 0 with this score cutoff, we
+    # consider the two words the same keyword. Ex: révolutionner/révolution.
+    known_tags_raw = storage.query(Tag.name).filter(
+        Tag.type == 'keyword').all()
     # Keyword in known_keywords is a one char tuple due to selecting a single
     # SQL column, so keyword[0]
     known_tags = [keyword[0] for keyword in known_tags_raw]
@@ -114,6 +114,7 @@ def extract_tags(full_content, trimmed_content, lang):
     for kw in keywords:
         if kw in known_tags and kw not in tag_keywords:
             tag_keywords.append(kw)
+            known_tags.append(kw)
             continue
         for keyword in known_tags:
             if (
@@ -121,15 +122,25 @@ def extract_tags(full_content, trimmed_content, lang):
                 and keyword not in tag_keywords
             ):
                 tag_keywords.append(keyword)
+                known_tags.append(keyword)
                 # print('keyword from yake:', kw)
                 # print('accepted keyword from db:', keyword)
 
     # If no existing tag matched, add the two first ones that consist of two
     # words or less if extracted content is long enough for tags to be relevant
     if len(tag_keywords) == 0 and len(full_content) >= 800:
-        tag_keywords = [kw for kw in keywords if len(
-            kw.split(' ')) <= 2][:2]
-
+        for kw in keywords:
+            if (
+                (len(kw.split(' ')) <= 2) and
+                (
+                    len(tag_keywords) == 1 and (
+                        ratio(kw, tag_keywords[0],
+                              score_cutoff=0.85) == 0
+                        and kw not in tag_keywords)
+                )
+                or (len(tag_keywords) == 0)
+            ):
+                tag_keywords.append(kw)
     tag_keywords = [(tag, None) for tag in tag_keywords]
 
     for false_couples in tag_keywords:
@@ -137,7 +148,7 @@ def extract_tags(full_content, trimmed_content, lang):
 
     print('all keywords:', keywords)
     # print('all tags final: ', tags)
-    # print('tag_keywords:', tag_keywords)
+    print('tag_keywords:', tag_keywords)
     return tags
 
 
@@ -326,8 +337,14 @@ def parse_save_articles(entries, feed):
 
 
 def serialize_article(article):
-    """Convert an article object into a dict, displaying tags"""
+    """Convert an article object into a dict, displaying tags and feed info"""
     article_dict = article.to_dict()
+    feed = article.article_feed
+    article_dict['feed_name'] = feed.name
+    article_dict['feed_banner_img'] = feed.banner_img
+    article_dict['feed_icon'] = feed.icon
+    article_dict['feed_articles_per_week'] = feed.articles_per_week
+    article_dict['feed_avg_shares_per_week'] = feed.average_shares_per_week
     article_dict['tags'] = []
     for assoc in article.article_tag_associations:
         tag_name = assoc.tag.name
@@ -341,12 +358,14 @@ def serialize_articles(articles, *args, **kwargs):
     read_articles = kwargs.get('read_articles')
     only_unread = kwargs.get('only_unread')
 
-    if only_unread and read_articles:
-        articles_dicts = [serialize_article(
-            article) for article in articles if article not in read_articles]
-    elif only_unread is False and read_articles:
-        articles_dicts = [serialize_article(
-            article) for article in read_articles]
+    if read_articles:
+        if only_unread:
+            articles_dicts = [serialize_article(
+                article) for article in articles
+                if article not in read_articles]
+        else:
+            articles_dicts = [serialize_article(
+                article) for article in articles if article in read_articles]
     else:
         articles_dicts = [serialize_article(article) for article in articles]
     return articles_dicts

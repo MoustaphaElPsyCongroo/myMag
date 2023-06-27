@@ -37,6 +37,9 @@ def import_feed():
 
             f = feedparser.parse(link)
 
+            if not f.feed:
+                abort(404, description='Not a valid feed address')
+
             # Check if the feed is permanently redirected
             if f.status == 301:
                 link = f.href
@@ -58,6 +61,9 @@ def import_feed():
             if 'image' in f.feed and 'href' in f.feed.image:
                 feed['banner_img'] = f.feed.image.href
 
+            # TODO: Récupérer le lien de la favicon trouvée côté client grâce au
+            # feedsearch et l'envoyer dans le body de la requête pour que je la
+            # définisse ici, semble plus fiable que le icon du créateur du rss.
             if 'icon' in f.feed:
                 feed['icon'] = f.feed.icon
             elif 'logo' in f.feed:
@@ -77,7 +83,8 @@ def import_feed():
 def update_feed(feed_id):
     """UPDATE a feed's details
 
-        body: <feed attribute to update>
+        body:
+            <feed attribute to update>: <value>
         invalid: id, created_at, updated_at
     """
     feed = storage.get(Feed, feed_id)
