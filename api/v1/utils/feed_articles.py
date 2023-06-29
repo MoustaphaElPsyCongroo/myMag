@@ -126,11 +126,13 @@ def extract_tags(full_content, trimmed_content, lang):
                 # print('keyword from yake:', kw)
                 # print('accepted keyword from db:', keyword)
 
-    # If no existing tag matched, add the two first ones that consist of two
-    # words or less if extracted content is long enough for tags to be relevant
-    if len(tag_keywords) == 0 and len(full_content) >= 800:
+    # If no existing tag matched, add the two most relevant ones (Yake orders
+    # them by relevance so we tend to take the first we find) that consist of
+    # two words or less, ensuring they are different from each other (since
+    # our Yake config voluntarily doesn't filter duplicates too much)
+    if len(tag_keywords) == 0:
         for kw in keywords:
-            if (len(kw.split(' ')) <= 2):
+            if (len(kw.split(' ')) <= 2) and (len(kw) >= 4):
                 if (
                     len(tag_keywords) == 1 and (
                         ratio(kw, tag_keywords[0],

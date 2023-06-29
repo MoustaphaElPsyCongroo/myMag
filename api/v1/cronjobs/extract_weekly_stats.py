@@ -3,6 +3,7 @@
 from datetime import timedelta, datetime
 from models.feed import Feed
 from models import storage
+from models.tag import Tag
 
 today = datetime.now()
 one_week_ago = today - timedelta(weeks=1)
@@ -15,7 +16,6 @@ def extract_weekly_stats():
     - articles per week
     Executes each day.
     """
-
     # When a feed is younger than a week, takes articles published this day
     # and multiplies * 5 working days to get an estimate for this week. I fixed
     # the case where every user unfollowed the feed, which will cease its

@@ -13,10 +13,12 @@ from sqlalchemy import func
 
 @app_views.route('/users/<user_id>/articles/liked/<int:page>')
 def get_liked_articles(user_id, page):
-    """GET paginated liked articles from a user's subscribed feeds"""
+    """GET all liked articles of a user"""
     user = storage.get(User, user_id)
     if user is None:
         abort(404, description="The specified user doesn't exist")
+    if page is None:
+        abort(405, description="This route is paginated. Select a page")
 
     liked_articles_query = (
         storage.query(Article)
@@ -143,17 +145,35 @@ def delete_like_article(user_id, article_id):
     return jsonify(tag_counts), 200
 
 
-@app_views.route('/users/<user_id>/articles/disliked')
-def get_disliked_articles(user_id):
-    """GET all disliked articles from a user's subscribed feeds"""
+@app_views.route('/users/<user_id>/articles/disliked/<int:page>')
+def get_disliked_articles(user_id, page):
+    """GET all disliked articles of a user"""
     user = storage.get(User, user_id)
     if user is None:
         abort(404, description="The specified user doesn't exist")
+    if page is None:
+        abort(405, description="This route is paginated. Select a page")
 
-    if not user.disliked_articles:
+    disliked_articles_query = (
+        storage.query(Article)
+        .join(User.disliked_articles)
+        .filter(User.id == user_id)
+    )
+
+    disliked_articles_count_query = (
+        storage.query(func.count(Article.id))
+        .join(User.disliked_articles)
+        .filter(User.id == user_id)
+    )
+
+    disliked_articles_paginated = paginate(
+        disliked_articles_query, disliked_articles_count_query, page, 30)
+
+    if disliked_articles_paginated.total == 0:
         abort(404, description="No disliked articles yet")
 
-    disliked_articles = serialize_articles(user.disliked_articles)
+    disliked_articles = serialize_paginated_articles(
+        disliked_articles_paginated, user)
     return jsonify(disliked_articles), 200
 
 

@@ -80,10 +80,8 @@ class DBStorage:
 
     def get(self, cls, id):
         """Retrieves one object"""
-        obj = models.storage.query(cls).filter(cls.id == id).all()
+        obj = models.storage.query(cls).filter(cls.id == id).first()
         return obj
-
-        return None
 
     def query(self, *args):
         """Queries the database session for further treatment"""
