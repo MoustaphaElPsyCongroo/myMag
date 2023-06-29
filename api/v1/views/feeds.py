@@ -1,10 +1,12 @@
 #!/usr/bin/python3
 """Feeds routes"""
 from api.v1.views import app_views
+from api.v1.utils.feed_articles import extract_article_language
 from flask import jsonify, abort, request
 from models import storage
 from models.feed import Feed
 import feedparser
+import logging
 
 
 @app_views.route('/feeds')
@@ -12,6 +14,13 @@ def get_feeds():
     """GET all feeds in database"""
     feeds = storage.all(Feed).values()
     return jsonify([feed.to_dict() for feed in feeds]), 200
+
+
+@app_views.route('/feeds/<feed_id>')
+def get_feed(feed_id):
+    """GET a feed in database"""
+    feed = storage.get(Feed, feed_id)
+    return jsonify(feed.to_dict())
 
 
 @app_views.route('/feeds', methods=['POST'])
@@ -70,6 +79,13 @@ def import_feed():
                 feed['icon'] = f.feed.logo
 
             feed['language'] = f.feed.get('language', 'en').split('-')[0]
+            # Double check 'en' feeds
+            if feed['language'] == 'en':
+                try:
+                    feed['language'] = extract_article_language(f.entries[0])
+                except Exception:
+                    logging.exception(
+                        f"Error fetching language for feed {feed['name']}")
 
             created = Feed(**feed)
             storage.new(created)

@@ -52,6 +52,31 @@ def extract_article_content(url):
     return plain_content
 
 
+def extract_article_language(article):
+    content = f'{article.title}.\n {extract_article_content(article.link)}'[
+        :1000]
+    if len(content) <= 200:
+        content = article.title
+
+    client = language_v1.LanguageServiceClient()
+    type_ = language_v1.Document.Type.PLAIN_TEXT
+
+    document = {"content": content, "type_": type_}
+
+    encoding_type = language_v1.EncodingType.UTF8
+
+    try:
+        response = client.analyze_entities(
+            request={"document": document, "encoding_type": encoding_type}
+        )
+    except Exception:
+        logging.exception('Error extracting article language')
+        return 'en'
+
+    print('lang:', response.language)
+    return response.language
+
+
 def extract_tags(full_content, trimmed_content, lang):
     """Extract tags from a string
 
@@ -71,15 +96,21 @@ def extract_tags(full_content, trimmed_content, lang):
         language_v1
         .ClassificationModelOptions.V2Model.ContentCategoriesVersion.V2
     )
-    response = client.classify_text(
-        request={
-            "document": document,
-            "classification_model_options": {
-                "v2_model":
-                    {"content_categories_version": content_categories_version}
-            },
-        }
-    )
+
+    try:
+        response = client.classify_text(
+            request={
+                "document": document,
+                "classification_model_options": {
+                    "v2_model":
+                        {"content_categories_version":
+                         content_categories_version}
+                },
+            }
+        )
+    except Exception:
+        logging.exception('Error extracting tags with Google NLP')
+        return []
 
     for category in response.categories:
         name_path = category.name
@@ -97,7 +128,7 @@ def extract_tags(full_content, trimmed_content, lang):
         dedupLim=0.9,
         dedupFunc='seqm',
         windowsSize=1,
-        top=20,
+        top=17,
         features=None)
     tag_keywords = []
     keywords = custom_kw_extractor.extract_keywords(full_content)
@@ -125,14 +156,23 @@ def extract_tags(full_content, trimmed_content, lang):
                 known_tags.append(keyword)
                 # print('keyword from yake:', kw)
                 # print('accepted keyword from db:', keyword)
+            else:
+                words = kw.split(' ')
+                for kword in words:
+                    if (
+                        ratio(keyword, kword, score_cutoff=0.85) > 0
+                        and keyword not in tag_keywords
+                    ):
+                        tag_keywords.append(keyword)
+                        known_tags.append(keyword)
 
     # If no existing tag matched, add the two most relevant ones (Yake orders
     # them by relevance so we tend to take the first we find) that consist of
-    # two words or less, ensuring they are different from each other (since
+    # one word, ensuring they are different from each other (since
     # our Yake config voluntarily doesn't filter duplicates too much)
     if len(tag_keywords) == 0:
         for kw in keywords:
-            if (len(kw.split(' ')) <= 2) and (len(kw) >= 4):
+            if (len(kw.split(' ')) == 1) and (len(kw) >= 4):
                 if (
                     len(tag_keywords) == 1 and (
                         ratio(kw, tag_keywords[0],
@@ -352,9 +392,11 @@ def serialize_article(article, user=None):
         article_dict['disliked'] = user in article.article_disliked_by
     article_dict['tags'] = []
     for assoc in article.article_tag_associations:
-        tag_name = assoc.tag.name
-        tag_confidence = assoc.confidence
-        article_dict['tags'].append([tag_name, tag_confidence])
+        tag_data = {}
+        tag_data['name'] = assoc.tag.name
+        tag_data['confidence'] = assoc.confidence
+        tag_data['id'] = assoc.tag.id
+        article_dict['tags'].append(tag_data)
     return article_dict
 
 

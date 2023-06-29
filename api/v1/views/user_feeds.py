@@ -54,7 +54,6 @@ def subscribe_user_to_feed(user_id):
                 else:
                     parse_save_articles(articles, feed)
             user.user_feeds.append(feed)
-            print('feeds:', user.user_feeds)
             storage.save()
     except ValueError:
         abort(400, description='Not a JSON')
