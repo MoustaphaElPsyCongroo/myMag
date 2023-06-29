@@ -1,12 +1,15 @@
 #!/usr/bin/python3
 """Routes for user_articles relationships"""
 from api.v1.views import app_views
+from api.v1.utils.feed_articles import (
+    serialize_articles, serialize_paginated_articles)
+from api.v1.utils.pagination import paginate
 from flask import jsonify, abort, request
 from models import storage
 from models.article import Article
 from models.feed import Feed
 from models.user import User
-from api.v1.utils.feed_articles import serialize_articles
+from sqlalchemy import func
 
 
 @app_views.route('/users/<user_id>/articles')
@@ -25,20 +28,45 @@ def get_user_articles(user_id):
     )
 
     articles = serialize_articles(articles)
+
     return jsonify(articles), 200
 
 
 @app_views.route('/users/<user_id>/articles/read')
-def get_user_read_articles(user_id):
-    """GET all read articles from a user's subscribed feeds"""
+@app_views.route('/users/<user_id>/articles/read/<int:page>')
+def get_user_read_articles(user_id, page=None):
+    """GET full or paginated read articles from a user's subscribed feeds"""
     user = storage.get(User, user_id)
     if user is None:
         abort(404, description="The specified user doesn't exist")
 
-    if not user.read_articles:
-        abort(404, description="No read articles yet")
+    read_articles_query = (
+        storage.query(Article)
+        .join(User.read_articles)
+        .filter(User.id == user_id)
+    )
 
-    read_articles = serialize_articles(user.read_articles)
+    read_articles_count_query = (
+        storage.query(func.count(Article.id))
+        .join(User.read_articles)
+        .filter(User.id == user_id)
+    )
+
+    if page is None:
+        objs = read_articles_query.all()
+        read_articles = serialize_articles(objs, user)
+        read_articles['total'] = read_articles_count_query.scalar()
+        if read_articles['total'] == 0:
+            abort(404, description="No read articles yet")
+    else:
+        read_articles_paginated = paginate(
+            read_articles_query, read_articles_count_query, page, 30)
+
+        if read_articles_paginated.total == 0:
+            abort(404, description="No read articles yet")
+
+        read_articles = serialize_paginated_articles(
+            read_articles_paginated, user)
     return jsonify(read_articles), 200
 
 
@@ -75,7 +103,11 @@ def mark_article_as_read(user_id):
 
 @app_views.route('/users/<user_id>/articles/unread')
 def get_user_unread_articles(user_id):
-    """GET all unread articles from user's subscribed feeds"""
+    """GET the 30 first unread articles from user's subscribed feeds
+        Only use the limit instead of pagination since list order will
+        change according to likes/dislikes and on the front articles will be
+        marked as read on scroll/click.
+    """
     user = storage.get(User, user_id)
     read_ids = (
         storage.query(Article.id)
@@ -89,14 +121,25 @@ def get_user_unread_articles(user_id):
         storage.query(Article)
         .join(Feed)
         .join(User, Feed.feed_users)
-        .filter(Article.id.in_(read_ids))
+        .filter(Article.id.not_in(read_ids))
         .filter(User.id == user_id)
+        .limit(30)
         .all()
     )
 
-    unread_articles = serialize_articles(all_user_articles)
+    all_user_articles_count = (
+        storage.query(func.count(Article.id))
+        .join(Feed)
+        .join(User, Feed.feed_users)
+        .filter(Article.id.not_in(read_ids))
+        .filter(User.id == user_id)
+        .scalar()
+    )
 
-    # Slower method
+    unread_articles = serialize_articles(all_user_articles, user)
+    unread_articles['total'] = all_user_articles_count
+
+    # Slower method (and no pagination)
     # unread_articles = []
     # for feed in user.user_feeds:
     #     unread_articles += serialize_articles(

@@ -80,10 +80,9 @@ class DBStorage:
 
     def get(self, cls, id):
         """Retrieves one object"""
-        objs = models.storage.all(cls)
-        for obj in objs.values():
-            if (obj.id == id):
-                return obj
+        obj = models.storage.query(cls).filter(cls.id == id).all()
+        return obj
+
         return None
 
     def query(self, *args):

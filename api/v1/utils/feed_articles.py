@@ -130,17 +130,15 @@ def extract_tags(full_content, trimmed_content, lang):
     # words or less if extracted content is long enough for tags to be relevant
     if len(tag_keywords) == 0 and len(full_content) >= 800:
         for kw in keywords:
-            if (
-                (len(kw.split(' ')) <= 2) and
-                (
+            if (len(kw.split(' ')) <= 2):
+                if (
                     len(tag_keywords) == 1 and (
                         ratio(kw, tag_keywords[0],
                               score_cutoff=0.85) == 0
                         and kw not in tag_keywords)
-                )
-                or (len(tag_keywords) == 0)
-            ):
-                tag_keywords.append(kw)
+                    or (len(tag_keywords) == 0)
+                ):
+                    tag_keywords.append(kw)
     tag_keywords = [(tag, None) for tag in tag_keywords]
 
     for false_couples in tag_keywords:
@@ -279,10 +277,10 @@ def parse_save_articles(entries, feed):
             if 'summary' in article:
                 properties['description'] = article.summary
 
-        content = f'{article.title}. {extract_article_content(article.link)}'
-        # print('length content before: ', len(content))
+        content = f'{article.title}.\n {extract_article_content(article.link)}'
+        print('length content before: ', len(content))
         if len(content) <= 800:
-            content = f"{article.title} {properties['description']}"
+            content = f"{article.title}.\n {properties['description']}"
         # print(content)
 
         properties['description'] = properties['description'][:2000]
@@ -312,7 +310,7 @@ def parse_save_articles(entries, feed):
             if tag_name.lower() in tag_names:
                 continue
             if existing is not None:
-                print('tag exists in db:', tag_name)
+                # print('tag exists in db:', tag_name)
                 assoc.tag = existing
             else:
                 new_tag = Tag(
@@ -336,8 +334,9 @@ def parse_save_articles(entries, feed):
     }
 
 
-def serialize_article(article):
-    """Convert an article object into a dict, displaying tags and feed info"""
+def serialize_article(article, user=None):
+    """Convert an article object into a dict, displaying tags, feed info and
+    article liked/disliked status if a user is passed"""
     article_dict = article.to_dict()
     feed = article.article_feed
     article_dict['feed_name'] = feed.name
@@ -345,6 +344,10 @@ def serialize_article(article):
     article_dict['feed_icon'] = feed.icon
     article_dict['feed_articles_per_week'] = feed.articles_per_week
     article_dict['feed_avg_shares_per_week'] = feed.average_shares_per_week
+
+    if user:
+        article_dict['liked'] = user in article.article_liked_by
+        article_dict['disliked'] = user in article.article_disliked_by
     article_dict['tags'] = []
     for assoc in article.article_tag_associations:
         tag_name = assoc.tag.name
@@ -353,19 +356,35 @@ def serialize_article(article):
     return article_dict
 
 
-def serialize_articles(articles, *args, **kwargs):
+def serialize_articles(articles, user, *args, **kwargs):
     """Convert a list of articles to a list of dicts, displaying tags"""
     read_articles = kwargs.get('read_articles')
     only_unread = kwargs.get('only_unread')
 
+    results = {}
+
     if read_articles:
         if only_unread:
             articles_dicts = [serialize_article(
-                article) for article in articles
+                article, user) for article in articles
                 if article not in read_articles]
         else:
             articles_dicts = [serialize_article(
-                article) for article in articles if article in read_articles]
+                article, user) for article in articles
+                if article in read_articles]
     else:
-        articles_dicts = [serialize_article(article) for article in articles]
-    return articles_dicts
+        articles_dicts = [serialize_article(
+            article, user) for article in articles]
+
+    results['results'] = articles_dicts
+    return results
+
+
+def serialize_paginated_articles(page_obj, user=None):
+    """Convert a page obj to a JSONifiable response, displaying tags and page
+    stats"""
+    response = serialize_articles(page_obj.items, user)
+    response['total'] = page_obj.total
+    response['has_previous'] = page_obj.has_previous
+    response['has_next'] = page_obj.has_next
+    return response
