@@ -1,12 +1,11 @@
 #!/usr/bin/python3
 from api.v1.views import app_views
 from api.v1.utils.pagination import paginate
-from api.v1.utils.feed_articles import (
-    serialize_articles, serialize_paginated_articles)
+from api.v1.utils.feed_articles import serialize_paginated_articles
 from flask import jsonify, abort, request
 from models import storage
 from models.article import Article
-from models.tag import Tag, TagLikeAssociation, TagDislikeAssociation
+from models.tag import TagLikeAssociation, TagDislikeAssociation
 from models.user import User
 from sqlalchemy import func
 
