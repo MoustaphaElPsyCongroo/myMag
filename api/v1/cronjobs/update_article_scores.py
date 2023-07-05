@@ -82,6 +82,7 @@ def update_article_scores():
             storage.query(ArticleUserScoreAssociation)
             .filter(ArticleUserScoreAssociation.article_id.not_in(read_ids))
             .filter(ArticleUserScoreAssociation.user_id == user_id)
+            .all()
         )
 
         for asso in unread_article_score_associations:

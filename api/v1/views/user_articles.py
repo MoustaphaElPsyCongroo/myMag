@@ -123,7 +123,8 @@ def get_user_unread_articles(user_id):
 
     all_user_articles = (
         storage.query(Article)
-        .join(ArticleUserScoreAssociation)
+        .join(User, ArticleUserScoreAssociation.user)
+        .join(Article, ArticleUserScoreAssociation.article)
         .filter(User.id == user_id)
         .filter(Article.id.not_in(read_ids))
         .order_by(ArticleUserScoreAssociation.total_score.desc())
@@ -137,10 +138,10 @@ def get_user_unread_articles(user_id):
 
     all_user_articles_count = (
         storage.query(func.count(Article.id))
-        .join(Feed)
-        .join(User, Feed.feed_users)
-        .filter(Article.id.not_in(read_ids))
+        .join(User, ArticleUserScoreAssociation.user)
+        .join(Article, ArticleUserScoreAssociation.article)
         .filter(User.id == user_id)
+        .filter(Article.id.not_in(read_ids))
         .scalar()
     )
 

@@ -60,7 +60,7 @@ def subscribe_user_to_feed(user_id):
                         ten_recent_articles = (
                             storage.query(Article)
                             .filter(Article.feed_id == feed.id)
-                            .order_by(Article.created_at)
+                            .order_by(Article.created_at.desc())
                             .limit(10)
                             .all()
                         )
@@ -75,8 +75,8 @@ def subscribe_user_to_feed(user_id):
                 ten_recent_articles = (
                     storage.query(Article)
                     .join(Feed.feed_articles)
-                    .filter(Article.feed_id == Feed.id)
-                    .order_by(Article.created_at)
+                    .filter(Article.feed_id == feed.id)
+                    .order_by(Article.created_at.desc())
                     .limit(10)
                     .all()
                 )

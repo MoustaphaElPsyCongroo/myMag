@@ -28,21 +28,26 @@ class User(BaseModel, Base):
     liked_articles = relationship(
         'Article',
         secondary=liked_article,
-        back_populates='article_liked_by')
+        back_populates='article_liked_by',
+        cascade='all, delete')
     disliked_articles = relationship(
         'Article',
         secondary=disliked_article,
-        back_populates='article_disliked_by')
+        back_populates='article_disliked_by',
+        cascade='all, delete')
     read_articles = relationship('Article', secondary=read_article)
     user_tag_like_associations = relationship(
         'TagLikeAssociation',
-        back_populates='user')
+        back_populates='user',
+        cascade='all, delete')
     user_tag_dislike_associations = relationship(
         'TagDislikeAssociation',
-        back_populates='user')
+        back_populates='user',
+        cascade='all, delete')
     user_article_score_associations = relationship(
         'ArticleUserScoreAssociation',
-        back_populates='user')
+        back_populates='user',
+        cascade='all, delete')
 
     def __init__(self, *args, **kwargs):
         """Initializes the User model"""
