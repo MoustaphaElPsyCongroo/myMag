@@ -4,12 +4,14 @@ from api.v1.views import app_views
 from api.v1.utils.feed_articles import (
     serialize_articles, serialize_paginated_articles)
 from api.v1.utils.pagination import paginate
+from datetime import datetime
 from flask import jsonify, abort, request
 from models import storage
-from models.article import Article
+from models.article import Article, ArticleUserScoreAssociation
 from models.feed import Feed
 from models.user import User
 from sqlalchemy import func
+from sqlalchemy.orm import contains_eager
 
 
 @app_views.route('/users/<user_id>/articles')
@@ -95,6 +97,7 @@ def mark_article_as_read(user_id):
                 abort(404, description="The specified article doesn't exist")
 
             user.read_articles.append(article)
+            user.last_read_date = datetime.now()
             storage.save()
     except ValueError:
         abort(400, description='Not a JSON')
@@ -114,15 +117,20 @@ def get_user_unread_articles(user_id):
         .join(User.read_articles)
         .filter(User.id == user_id)
     )
+
     if user is None:
         abort(404, description="The specified user doesn't exist")
 
     all_user_articles = (
         storage.query(Article)
-        .join(Feed)
-        .join(User, Feed.feed_users)
-        .filter(Article.id.not_in(read_ids))
+        .join(ArticleUserScoreAssociation)
         .filter(User.id == user_id)
+        .filter(Article.id.not_in(read_ids))
+        .order_by(ArticleUserScoreAssociation.total_score.desc())
+        .options(
+            contains_eager(Article.article_user_score_associations)
+        )
+        .populate_existing()
         .limit(30)
         .all()
     )

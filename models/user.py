@@ -5,7 +5,7 @@ Holds the representation of a User
 
 from models.base_model import BaseModel, Base
 from models.article import liked_article, disliked_article, read_article
-from sqlalchemy import Column, String, Table, ForeignKey
+from sqlalchemy import Column, String, DateTime, Table, ForeignKey
 from sqlalchemy.orm import relationship
 
 user_feed = Table('user_feed', Base.metadata,
@@ -21,6 +21,8 @@ class User(BaseModel, Base):
     email = Column(String(128), nullable=False)
     name = Column(String(128), nullable=True)
     profile_pic = Column(String(256), nullable=True)
+    last_read_date = Column(DateTime, nullable=True)
+    last_scoring_date = Column(DateTime, nullable=True)
     user_feeds = relationship(
         'Feed', secondary=user_feed, back_populates='feed_users')
     liked_articles = relationship(
@@ -37,6 +39,9 @@ class User(BaseModel, Base):
         back_populates='user')
     user_tag_dislike_associations = relationship(
         'TagDislikeAssociation',
+        back_populates='user')
+    user_article_score_associations = relationship(
+        'ArticleUserScoreAssociation',
         back_populates='user')
 
     def __init__(self, *args, **kwargs):

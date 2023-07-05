@@ -2,6 +2,8 @@
 """Utility functions for article and tag extraction"""
 from datetime import datetime
 from api.v1.utils.exceptions import FeedInactiveError, FeedNotFoundError
+from api.v1.utils.user_articles import calculate_initial_article_score
+from bs4 import BeautifulSoup
 from google.cloud import language_v1
 from Levenshtein import ratio
 from models import storage
@@ -73,7 +75,6 @@ def extract_article_language(article):
         logging.exception('Error extracting article language')
         return 'en'
 
-    print('lang:', response.language)
     return response.language
 
 
@@ -122,26 +123,17 @@ def extract_tags(full_content, trimmed_content, lang):
                 tags.append((tag, confidence))
             all_tags_raw.append(tag)
 
-    custom_kw_extractor = yake.KeywordExtractor(
-        lan=lang,
-        n=4,
-        dedupLim=0.9,
-        dedupFunc='seqm',
-        windowsSize=1,
-        top=17,
-        features=None)
     tag_keywords = []
-    keywords = custom_kw_extractor.extract_keywords(full_content)
+    keywords = extract_yake_keywords(full_content, lang, 4, 0.6, 17)
 
     # Check the Levenshtein ratio of Yake's keywords against all keywords
     # already in database. If this ratio is > 0 with this score cutoff, we
     # consider the two words the same keyword. Ex: révolutionner/révolution.
     known_tags_raw = storage.query(Tag.name).filter(
         Tag.type == 'keyword').all()
-    # Keyword in known_keywords is a one char tuple due to selecting a single
+    # Keyword in known_tags_raw is a one char tuple due to selecting a single
     # SQL column, so keyword[0]
     known_tags = [keyword[0] for keyword in known_tags_raw]
-    keywords = [kw[0] for kw in keywords]
     for kw in keywords:
         if kw in known_tags and kw not in tag_keywords:
             tag_keywords.append(kw)
@@ -166,21 +158,11 @@ def extract_tags(full_content, trimmed_content, lang):
                         tag_keywords.append(keyword)
                         known_tags.append(keyword)
 
-    # If no existing tag matched, add the two most relevant ones (Yake orders
-    # them by relevance so we tend to take the first we find) that consist of
-    # one word, ensuring they are different from each other (since
-    # our Yake config voluntarily doesn't filter duplicates too much)
+    # If no existing tag matched, add the two most relevant ones that are
+    # sufficiently different from each other
     if len(tag_keywords) == 0:
-        for kw in keywords:
-            if (len(kw.split(' ')) == 1) and (len(kw) >= 4):
-                if (
-                    len(tag_keywords) == 1 and (
-                        ratio(kw, tag_keywords[0],
-                              score_cutoff=0.85) == 0
-                        and kw not in tag_keywords)
-                    or (len(tag_keywords) == 0)
-                ):
-                    tag_keywords.append(kw)
+        keywords = extract_yake_keywords(full_content, lang, 2, 0.3, 2)
+        tag_keywords = keywords
     tag_keywords = [(tag, None) for tag in tag_keywords]
 
     for false_couples in tag_keywords:
@@ -190,6 +172,22 @@ def extract_tags(full_content, trimmed_content, lang):
     # print('all tags final: ', tags)
     print('tag_keywords:', tag_keywords)
     return tags
+
+
+def extract_yake_keywords(content, lang, max_ngram_size, dedupLim, top):
+    """Extract Yake keywords from content"""
+    custom_kw_extractor = yake.KeywordExtractor(
+        lan=lang,
+        n=max_ngram_size,
+        dedupLim=dedupLim,
+        dedupFunc='seqm',
+        windowsSize=1,
+        top=top,
+        features=None)
+
+    keywords = custom_kw_extractor.extract_keywords(content)
+    keywords = [kw[0] for kw in keywords]
+    return keywords
 
 
 def fetch_articles(feed):
@@ -278,6 +276,7 @@ def parse_save_articles(entries, feed):
         properties['feed_id'] = feed.id
         try:
             properties['title'] = article.title
+            properties['link'] = article.link
             # published_parsed is a Python 9-tuple that we need to convert
             #  to a datetime object
             if 'published_parsed' in article:
@@ -290,9 +289,23 @@ def parse_save_articles(entries, feed):
             logging.exception()
             continue
 
+        # Let's account for and search all possible ways to hide thumbnail
+        # images in a RSS feed, other methods after content fetching below
+        if 'media_thumbnail' in article:
+            properties['image'] = article.media_thumbnail[0]['url']
+        elif 'media_content' in article:
+            for media in article.media_content:
+                if 'medium' in media and 'image' in media['medium']:
+                    properties['image'] = media['url']
+                    break
+        elif 'links' in article:
+            for link in article.links:
+                if 'image' in link.type:
+                    properties['image'] = link.href
+
         properties['description'] = ''
         if 'summary_detail' in article:
-            if article.summary_detail.type != 'text/plain':
+            if article.summary_detail.type == 'text/html':
                 try:
                     description = html_to_text.handle(article.summary)
                     properties['description'] = description
@@ -304,7 +317,11 @@ def parse_save_articles(entries, feed):
 
         if 'content' in article:
             for content in article.content:
-                if content.type != 'text/plain' or '<p>' in content.value:
+                if (
+                    (content.type != 'text/plain'
+                     and 'image' not in content.type)
+                    or '<p>' in content.value
+                ):
                     try:
                         description = html_to_text.handle(content.value)
                         properties['description'] += description
@@ -312,15 +329,26 @@ def parse_save_articles(entries, feed):
                         logging.exception(
                             'Caught exception when extracting html')
                         properties['description'] = ''
-                else:
+                elif 'image' not in content.type:
                     properties['description'] += content.value
+                elif 'image' in content.type and 'image' not in properties:
+                    properties['image'] = content.value
 
-        if not properties['description']:
+        if 'image' not in properties and 'content' in article:
+            for content in article.content:
+                if content.type == 'text/html':
+                    soup = BeautifulSoup(content.value, 'html.parser')
+                    if soup is not None:
+                        image_url = soup.find('img')['src']
+                        if image_url:
+                            properties['image'] = image_url
+                            break
+
+        if 'description' not in properties:
             if 'summary' in article:
                 properties['description'] = article.summary
 
         content = f'{article.title}.\n {extract_article_content(article.link)}'
-        print('length content before: ', len(content))
         if len(content) <= 800:
             content = f"{article.title}.\n {properties['description']}"
         # print(content)
@@ -344,7 +372,7 @@ def parse_save_articles(entries, feed):
             tag_confidence = tag_confidence_couple[1]
             if tag_confidence_couple[1] is None:
                 tag_type = 'keyword'
-                tag_confidence = 0.00
+                tag_confidence = 0.3
 
             assoc = TagArticleAssociation(confidence=tag_confidence)
             assoc.tag = None
@@ -363,6 +391,7 @@ def parse_save_articles(entries, feed):
                 storage.new(new_tag)
             tag_names.append(tag_name.lower())
             created_article.article_tag_associations.append(assoc)
+        calculate_initial_article_score(created_article, feed)
         storage.new(created_article)
         storage.save()
         articles_added += 1
@@ -390,6 +419,9 @@ def serialize_article(article, user=None):
     if user:
         article_dict['liked'] = user in article.article_liked_by
         article_dict['disliked'] = user in article.article_disliked_by
+        for asso in article.article_user_score_associations:
+            if asso.user == user:
+                article_dict['score'] = asso.total_score
     article_dict['tags'] = []
     for assoc in article.article_tag_associations:
         tag_data = {}

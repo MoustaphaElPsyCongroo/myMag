@@ -39,10 +39,7 @@ class TagArticleAssociation(Base):
     tag_id = Column(ForeignKey('tags.id'), primary_key=True)
     article_id = Column(ForeignKey('articles.id'), primary_key=True)
     confidence = Column(Float, default=0)
-    tag = relationship(
-        'Tag',
-        back_populates='tag_article_associations',
-        cascade='all, delete')
+    tag = relationship('Tag', back_populates='tag_article_associations')
     article = relationship(
         'Article', back_populates='article_tag_associations')
 
