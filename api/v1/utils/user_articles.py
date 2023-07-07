@@ -79,13 +79,14 @@ def calculate_timerot_score(
     # connection frequency) so updating must take into account hours
     if article_date_delta.days > 0:
         single_day_percentage_points = 25
-        weeks = article_date_delta.days // 7
+        days = article_date_delta.days - 1
+        # weeks = article_date_delta.days // 7
         if article_date > last_scoring_date:
             score = calculate_timerot_score_for_firstday(
                 article_date, last_scoring_date, one_hour_ago, score)
         if last_scoring_delta.days > 0:
-            percentage = (single_day_percentage_points + weeks * 5) / 100
-            logging.info('+1 day scoring percentage %s', percentage)
+            percentage = (single_day_percentage_points + days * 5) / 100
+            logging.info('%s days scoring percentage %s', days + 1, percentage)
             score *= (1 - percentage)**last_scoring_delta.days
     elif (
         article_date <= one_hour_ago

@@ -36,7 +36,6 @@ def update_article_scores():
 
     users = storage.query(User).filter(or_(
         (
-            (User.last_read_date.is_(None)) |
             (User.last_scoring_date.is_(None))
         ),
         (
@@ -85,6 +84,9 @@ def update_article_scores():
             .all()
         )
 
+        logging.info('Scoring user: %s', user_id)
+        logging.debug('Last read date: %s', user.last_read_date)
+        logging.debug('Last scoring date: %s', user.last_scoring_date)
         for asso in unread_article_score_associations:
             logging.info(
                 'Calculating updated article score for article_id: %s',
@@ -102,3 +104,4 @@ def update_article_scores():
                 user.read_articles.append(asso.article)
         user.last_scoring_date = datetime.now()
     storage.save()
+    storage.close()

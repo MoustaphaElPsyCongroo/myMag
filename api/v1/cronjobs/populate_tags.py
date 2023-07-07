@@ -32,6 +32,7 @@ def populate_tags():
         )
         storage.new(new_tag)
     storage.save()
+    storage.close()
 
     if not tags_to_add:
         print('no new tags to add')
