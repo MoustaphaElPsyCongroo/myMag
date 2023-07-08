@@ -36,10 +36,10 @@ def get_expired_token_user(refresh_token):
         res = requests.post(
             'https://oauth2.googleapis.com/token', data=data)
     except Exception as e:
-        return None
+        return (None, None)
 
     if res.status_code != 200:
-        return None
+        return (None, None)
 
     res = res.json()
 
@@ -51,7 +51,7 @@ def get_expired_token_user(refresh_token):
             GOOGLE_CLIENT_ID,
             clock_skew_in_seconds=10)
     except Exception as e:
-        return None
+        return (None, None)
 
     user_id = id_info.get('sub')
     return (user_id, new_token)
@@ -89,8 +89,7 @@ def login_required(f):
         if expires_in < 50:
             refresh_token = request.headers.get(
                 'Refreshing').split('RefreshToken ')[1]
-            if get_expired_token_user(refresh_token):
-                user_id, token = get_expired_token_user(refresh_token)
+            user_id, token = get_expired_token_user(refresh_token)
 
             if user_id is None:
                 return jsonify({
@@ -126,7 +125,6 @@ def login():
         res = requests.post(
             'https://oauth2.googleapis.com/token', data=data)
     except Exception as e:
-
         return jsonify(error_status), 401
 
     if res.status_code != 200:
