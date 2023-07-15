@@ -1,0 +1,19 @@
+.login {
+  border-radius: 50% 50%;
+  border: none;
+  padding: 0;
+  text-align: center;
+}
+
+.login img {
+  width: 50px;
+}
+
+.login:hover {
+  cursor: pointer;
+  background-color: lightgray;
+}
+
+.login:active {
+  background-color: green;
+}
