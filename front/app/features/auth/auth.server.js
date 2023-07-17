@@ -18,8 +18,8 @@ authenticator.use(new GoogleStrategy(
   },
   async ({ refreshToken, extraParams, profile }) => {
     const idToken = extraParams?.id_token;
+    const expiresIn = extraParams?.expires_in;
 
-    console.log('id_token', extraParams.id_token);
     const url = `${process.env.BACKEND_URL}/auth/login`;
     const userRes = await fetch(url, {
       method: 'POST',
@@ -29,7 +29,8 @@ authenticator.use(new GoogleStrategy(
         Refreshing: `RefreshToken ${refreshToken}`
       },
       body: JSON.stringify({
-        id: profile._json.sub
+        id: profile._json.sub,
+        expires_in: expiresIn
       })
     });
 

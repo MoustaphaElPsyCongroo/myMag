@@ -22,7 +22,6 @@ export const links = () => [
 
 export const loader = async ({ request }) => {
   const user = await authenticator.isAuthenticated(request);
-  console.log('user', user);
   return user || {};
 };
 

@@ -1,5 +1,5 @@
 import { json } from '@remix-run/node';
-// import { useLoaderData } from '@remix-run/react';
+import { Link, useLoaderData } from '@remix-run/react';
 import { authenticator } from '~/features/auth/auth.server';
 
 export const loader = async ({ request }) => {
@@ -7,12 +7,33 @@ export const loader = async ({ request }) => {
     failureRedirect: '/'
   });
 
-  return json(user);
+  const userId = user.id;
+  const thirtyFirstUnreadArticles = await fetch(
+    `${process.env.BACKEND_URL}/users/${userId}/articles/unread`);
+  return json(await thirtyFirstUnreadArticles.json());
 };
 
 export default function ArticlesRoute () {
-  // const user = useLoaderData();
+  const articlesData = useLoaderData();
+  const articles = articlesData.results;
   // console.log('user in articles', user);
 
-  return <h2>Here are your Articles!</h2>;
+  return (
+    <>
+      <h2>Here are your Articles!</h2>
+      <ul>
+        {articles.map(article => {
+          return (
+            <Link to={article.link} target='_blank' key={article.id}>
+              <li>
+                <h3>{article.title}</h3>
+                <p>{article.description}</p>
+                <img src={article.image} alt='article image' />
+              </li>
+            </Link>
+          );
+        })}
+      </ul>
+    </>
+  );
 }

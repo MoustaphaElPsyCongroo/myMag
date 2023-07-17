@@ -74,7 +74,9 @@ def login_required(f):
                 'error': 'Missing token'
             }), 401
 
+        expires_in = request.get_json().get('expires_in', 9999)
         id_info = {}
+
         try:
             id_info = id_token.verify_oauth2_token(
                 token,
@@ -119,8 +121,8 @@ def login():
         return jsonify({
             'error': 'Missing token'
         }), 401
-    print('token', token)
 
+    expires_in = request.get_json().get('expires_in', 9999)
     id_info = {}
 
     try:
