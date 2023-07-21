@@ -10,12 +10,10 @@ from flask import jsonify
 
 
 @app_views.route('/status', methods=['GET'])
-@login_required
-def status(user_token, current_user):
+def status():
     """Status of the API"""
     return jsonify({
         'status': 'OK',
-        'user_token': user_token
     })
 
 
