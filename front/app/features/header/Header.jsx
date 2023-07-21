@@ -12,8 +12,8 @@ export const links = () => [
 export const Header = ({ user }) => {
   return (
     <header>
-      <h1>myMag</h1>
-      <span>Create your own Magazine</span>
+      <h1 className='logo'>myMag<sub className='beta'>beta</sub></h1>
+      <span className='tagline'>Create your own Magazine</span>
       {user?.id ? <LogOutButton profilePic={user.profile_pic} /> : <LogInButton provider='google' />}
     </header>
   );

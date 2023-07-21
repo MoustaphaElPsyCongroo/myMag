@@ -10,6 +10,7 @@ import {
 import { authenticator } from '~/features/auth/auth.server';
 
 import { Header, links as headerLinks } from '~/features/header/Header';
+import { Sidebar, links as sidebarLinks } from './features/sidebar/Sidebar';
 
 import normalizeCss from '~/styles/normalize.css';
 import globalStyles from '~/styles/global.css';
@@ -17,7 +18,8 @@ import globalStyles from '~/styles/global.css';
 export const links = () => [
   { rel: 'stylesheet', href: normalizeCss },
   { rel: 'stylesheet', href: globalStyles },
-  ...headerLinks()
+  ...headerLinks(),
+  ...sidebarLinks()
 ];
 
 export const loader = async ({ request }) => {
@@ -38,7 +40,12 @@ export default function App () {
       </head>
       <body>
         <Header user={user} />
-        <Outlet />
+        <div className='main-container'>
+          <Sidebar user={user} />
+          <main>
+            <Outlet />
+          </main>
+        </div>
         <ScrollRestoration />
         <Scripts />
         <LiveReload />

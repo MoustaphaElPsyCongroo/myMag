@@ -6,8 +6,6 @@ export const links = () => [
 
 export function LandingPage () {
   return (
-    <p>
-      Landing Page
-    </p>
+    <h2>Here a landing page will introduce you to the site… later</h2>
   );
 }

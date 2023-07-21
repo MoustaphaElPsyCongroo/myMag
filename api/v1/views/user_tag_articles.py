@@ -77,30 +77,37 @@ def like_article(user_id):
                 user.disliked_articles.remove(article)
                 previously_disliked = True
 
-            tag_counts = []
+            tag_counts = {}
             for tag in tags:
                 slot = {}
                 slot['name'] = tag.name
-                slot['likes_from_article'] = 1
-                slot['likes_from_user'] = 0
+                slot['like_count_from_article'] = 1
+                slot['like_count_from_user'] = 0
+                slot['dislike_count_from_article'] = 0
+                slot['dislike_count_from_user'] = 0
 
-                if previously_disliked:
-                    for asso in tag.tag_dislike_associations:
-                        if asso.user == user:
+                for asso in tag.tag_dislike_associations:
+                    if asso.user == user:
+                        if previously_disliked:
                             asso.dislike_count_from_article -= 1
+                        slot['dislike_count_from_article'] = \
+                            asso.dislike_count_from_article
+                        slot['dislike_count_from_user'] = \
+                            asso.dislike_count_from_user
+                        break
                 for asso in tag.tag_like_associations:
                     if asso.user == user:
                         asso.like_count_from_article += 1
-                        slot['likes_from_article'] = \
+                        slot['like_count_from_article'] = \
                             asso.like_count_from_article
-                        slot['likes_from_user'] = \
+                        slot['like_count_from_user'] = \
                             asso.like_count_from_user
                         break
                 else:
                     asso = TagLikeAssociation(like_count_from_article=1)
                     asso.tag = tag
                     asso.user = user
-                tag_counts.append(slot)
+                tag_counts[tag.id] = slot
             liked_articles.append(article)
             storage.save()
     except ValueError:
@@ -127,18 +134,26 @@ def delete_like_article(user_id, article_id):
     tag_article_associations = article.article_tag_associations
     tags = [asso.tag for asso in tag_article_associations]
 
-    tag_counts = []
+    tag_counts = {}
     for tag in tags:
         slot = {}
         slot['name'] = tag.name
+        slot['dislike_count_from_article'] = 0
+        slot['dislike_count_from_user'] = 0
         for asso in tag.tag_like_associations:
             if asso.user == user:
                 asso.like_count_from_article -= 1
-                slot['likes from article'] = \
+                slot['like_count_from_article'] = \
                     asso.like_count_from_article
-                slot['likes from user'] = asso.like_count_from_user
+                slot['like_count_from_user'] = asso.like_count_from_user
                 break
-        tag_counts.append(slot)
+        for asso in tag.tag_dislike_associations:
+            if asso.user == user:
+                slot['dislike_count_from_article'] = \
+                    asso.dislike_count_from_article
+                slot['dislike_count_from_user'] = asso.dislike_count_from_user
+                break
+        tag_counts[tag.id] = slot
     user.liked_articles.remove(article)
     storage.save()
     return jsonify(tag_counts), 200
@@ -211,31 +226,37 @@ def dislike_article(user_id):
                 user.liked_articles.remove(article)
                 previously_liked = True
 
-            tag_counts = []
+            tag_counts = {}
             for tag in tags:
                 slot = {}
                 slot['name'] = tag.name
-                slot['dislikes_from_article'] = 1
-                slot['dislikes_from_user'] = 0
+                slot['dislike_count_from_article'] = 1
+                slot['dislike_count_from_user'] = 0
+                slot['like_count_from_article'] = 0
+                slot['like_count_from_user'] = 0
 
-                if previously_liked:
-                    for asso in tag.tag_like_associations:
-                        if asso.user == user:
+                for asso in tag.tag_like_associations:
+                    if asso.user == user:
+                        if previously_liked:
                             asso.like_count_from_article -= 1
+                        slot['like_count_from_article'] = \
+                            asso.like_count_from_article
+                        slot['like_count_from_user'] = \
+                            asso.like_count_from_user
+                        break
                 for asso in tag.tag_dislike_associations:
                     if asso.user == user:
                         asso.dislike_count_from_article += 1
-                        slot['dislikes_from_article'] = \
+                        slot['dislike_count_from_article'] = \
                             asso.dislike_count_from_article
-                        slot['dislikes_from_user'] = \
+                        slot['dislike_count_from_user'] = \
                             asso.dislike_count_from_user
                         break
                 else:
                     asso = TagDislikeAssociation(dislike_count_from_article=1)
                     asso.tag = tag
                     asso.user = user
-                tag_counts.append(slot)
-
+                tag_counts[tag.id] = slot
             disliked_articles.append(article)
             storage.save()
     except ValueError:
@@ -262,18 +283,25 @@ def delete_dislike_article(user_id, article_id):
     tag_article_associations = article.article_tag_associations
     tags = [asso.tag for asso in tag_article_associations]
 
-    tag_counts = []
+    tag_counts = {}
     for tag in tags:
         slot = {}
         slot['name'] = tag.name
+        slot['like_count_from_article'] = 0
+        slot['like_count_from_user'] = 0
         for asso in tag.tag_dislike_associations:
             if asso.user == user:
                 asso.dislike_count_from_article -= 1
-                slot['dislikes_from_article'] = \
+                slot['dislike_count_from_article'] = \
                     asso.dislike_count_from_article
-                slot['dislikes_from_user'] = asso.dislike_count_from_user
+                slot['dislike_count_from_user'] = asso.dislike_count_from_user
                 break
-        tag_counts.append(slot)
+        for asso in tag.tag_like_associations:
+            if asso.user == user:
+                slot['like_count_from_article'] = asso.like_count_from_article
+                slot['like_count_from_user'] = asso.like_count_from_user
+                break
+        tag_counts[tag.id] = slot
     user.disliked_articles.remove(article)
     storage.save()
     return jsonify(tag_counts), 200

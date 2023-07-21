@@ -1,0 +1,14 @@
+.like-counter,
+.dislike-counter {
+  --fa-animation-iteration-count: 1;
+  --fa-counter-scale: 0.8;
+}
+
+.like-tag-icon,
+.dislike-tag-icon {
+  height: 15px;
+}
+
+.tag-name {
+  color: black;
+}

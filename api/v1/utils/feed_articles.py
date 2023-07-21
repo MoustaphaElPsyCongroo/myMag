@@ -270,12 +270,22 @@ def get_random_header(header_list):
 def parse_save_articles(entries, feed):
     """Parse, extract tags and save in database a list of entries"""
     articles_added = 0
+
     for article in entries:
         properties = {}
 
         properties['feed_id'] = feed.id
         try:
             properties['title'] = article.title
+            found = (
+                storage.query(Article.link)
+                .filter(Article.link == article.link)
+                .first()
+            )
+            if found:
+                print('Article with title', article.title,
+                      'and link', article.link, 'already exists, skipped')
+                continue
             properties['link'] = article.link
             # published_parsed is a Python 9-tuple that we need to convert
             #  to a datetime object

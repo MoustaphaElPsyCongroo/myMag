@@ -1,6 +1,25 @@
+@font-face {
+  font-family: "algerian";
+  src: url("/font/ALGER.TTF") format("ttf");
+}
+
 header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px gray solid;
+}
+
+header .logo {
+  font-family: "algerian";
+  color: rgb(56, 93, 56);
+  font-size: 35px;
+}
+
+header .beta {
+  font-size: 15px;
+}
+
+header .tagline {
+  font-size: 40px;
 }
