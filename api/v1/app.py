@@ -76,7 +76,7 @@ Swagger(app)
 if __name__ == "__main__":
     """Main Function"""
     host = config('MYMAG_API_HOST')
-    port = config('MYMAG_API_PORT')
+    port = os.environ.get('PORT', config('MYMAG_API_PORT'))
     if not host:
         host = '0.0.0.0'
     if not port:
