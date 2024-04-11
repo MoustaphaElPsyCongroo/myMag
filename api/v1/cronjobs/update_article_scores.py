@@ -1,11 +1,13 @@
 #!/usr/bin/python3
+import logging
+from datetime import datetime, timedelta
+
+from sqlalchemy import or_
+
 from api.v1.utils.user_articles import calculate_updated_article_scores
 from models import storage
 from models.article import Article, ArticleUserScoreAssociation
 from models.user import User
-from datetime import datetime, timedelta
-from sqlalchemy import or_
-import logging
 
 logging = logging.getLogger(__name__)
 
@@ -34,40 +36,44 @@ def update_article_scores():
     ten_hours_ago = scoring_start_date - timedelta(hours=10)
     one_day_ago = scoring_start_date - timedelta(days=1)
 
-    users = storage.query(User).filter(or_(
-        (
-            (User.last_scoring_date.is_(None))
-        ),
-        (
-            (User.last_read_date >= thirty_minutes_ago) &
-            (User.last_scoring_date <= ten_minutes_ago)
-        ),
-        (
-            (User.last_read_date < thirty_minutes_ago) &
-            (User.last_read_date >= one_hour_ago) &
-            (User.last_scoring_date <= thirty_minutes_ago)
-        ),
-        (
-            (User.last_read_date < one_hour_ago) &
-            (User.last_read_date >= two_hours_ago) &
-            (User.last_scoring_date <= one_hour_ago)
-        ),
-        (
-            (User.last_read_date < two_hours_ago) &
-            (User.last_read_date >= four_hours_ago) &
-            (User.last_scoring_date <= two_hours_ago)
-        ),
-        (
-            (User.last_read_date < four_hours_ago) &
-            (User.last_read_date >= ten_hours_ago) &
-            (User.last_scoring_date <= three_hours_ago)
-        ),
-        (
-            (User.last_read_date < ten_hours_ago) &
-            (User.last_read_date >= one_day_ago) &
-            (User.last_scoring_date <= seven_hours_ago)
+    users = (
+        storage.query(User)
+        .filter(
+            or_(
+                (User.last_scoring_date.is_(None)),
+                (
+                    (User.last_read_date >= thirty_minutes_ago)
+                    & (User.last_scoring_date <= ten_minutes_ago)
+                ),
+                (
+                    (User.last_read_date < thirty_minutes_ago)
+                    & (User.last_read_date >= one_hour_ago)
+                    & (User.last_scoring_date <= thirty_minutes_ago)
+                ),
+                (
+                    (User.last_read_date < one_hour_ago)
+                    & (User.last_read_date >= two_hours_ago)
+                    & (User.last_scoring_date <= one_hour_ago)
+                ),
+                (
+                    (User.last_read_date < two_hours_ago)
+                    & (User.last_read_date >= four_hours_ago)
+                    & (User.last_scoring_date <= two_hours_ago)
+                ),
+                (
+                    (User.last_read_date < four_hours_ago)
+                    & (User.last_read_date >= ten_hours_ago)
+                    & (User.last_scoring_date <= three_hours_ago)
+                ),
+                (
+                    (User.last_read_date < ten_hours_ago)
+                    & (User.last_read_date >= one_day_ago)
+                    & (User.last_scoring_date <= seven_hours_ago)
+                ),
+            )
         )
-    )).all()
+        .all()
+    )
 
     for user in users:
         user_id = user.id
@@ -84,23 +90,23 @@ def update_article_scores():
             .all()
         )
 
-        logging.info('Scoring user: %s', user_id)
-        logging.debug('Last read date: %s', user.last_read_date)
-        logging.debug('Last scoring date: %s', user.last_scoring_date)
+        logging.info("Scoring user: %s", user_id)
+        logging.debug("Last read date: %s", user.last_read_date)
+        logging.debug("Last scoring date: %s", user.last_scoring_date)
         for asso in unread_article_score_associations:
             logging.info(
-                'Calculating updated article score for article_id: %s',
-                asso.article.id)
-            logging.info('title: %s', asso.article.title)
+                "Calculating updated article score for article_id: %s", asso.article.id
+            )
+            logging.info("title: %s", asso.article.title)
 
             scores = calculate_updated_article_scores(asso)
 
-            asso.score_from_time = scores['score_from_time']
-            asso.score_from_tags = scores['score_from_tags']
-            asso.total_score = scores['total_score']
+            asso.score_from_time = scores["score_from_time"]
+            asso.score_from_tags = scores["score_from_tags"]
+            asso.total_score = scores["total_score"]
             asso.last_scoring_date = datetime.now()
 
-            if scores['total_score'] <= 0:
+            if scores["total_score"] <= 0:
                 user.read_articles.append(asso.article)
         user.last_scoring_date = datetime.now()
     storage.save()

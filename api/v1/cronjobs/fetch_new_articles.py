@@ -1,12 +1,15 @@
 #!/usr/bin/python3
 """Cronjob function for fetching of new articles to add to the database"""
-from api.v1.utils.feed_articles import fetch_articles, parse_save_articles
-from api.v1.utils.exceptions import FeedInactiveError, FeedNotFoundError
-from datetime import timedelta, datetime
-from models.feed import Feed
-from models import storage
-from sqlalchemy import or_
+
+from datetime import datetime, timedelta
 from time import sleep
+
+from sqlalchemy import or_
+
+from api.v1.utils.exceptions import FeedInactiveError, FeedNotFoundError
+from api.v1.utils.feed_articles import fetch_articles, parse_save_articles
+from models import storage
+from models.feed import Feed
 
 
 def fetch_new_articles():
@@ -34,52 +37,53 @@ def fetch_new_articles():
     three_hours_ago = fetching_start_date - timedelta(hours=3)
     one_day_ago = fetching_start_date - timedelta(days=1)
 
-    feeds = storage.query(Feed).filter(
-        Feed.active.is_(True),
-        Feed.feed_users.any(),
-        or_(
-            (
-                (Feed.articles_per_week == 0) &
-                (Feed.updated_at <= ten_minutes_ago)
+    feeds = (
+        storage.query(Feed)
+        .filter(
+            Feed.active.is_(True),
+            Feed.feed_users.any(),
+            or_(
+                ((Feed.articles_per_week == 0) & (Feed.updated_at <= ten_minutes_ago)),
+                (
+                    (Feed.articles_per_week >= 300)
+                    & (Feed.updated_at <= ten_minutes_ago)
+                ),
+                (
+                    (Feed.articles_per_week >= 150)
+                    & (Feed.articles_per_week < 300)
+                    & (Feed.updated_at < thirty_minutes_ago)
+                ),
+                (
+                    (Feed.articles_per_week >= 90)
+                    & (Feed.articles_per_week < 150)
+                    & (Feed.updated_at < one_hour_ago)
+                ),
+                (
+                    (Feed.articles_per_week >= 30)
+                    & (Feed.articles_per_week < 90)
+                    & (Feed.updated_at < two_hours_ago)
+                ),
+                (
+                    (Feed.articles_per_week >= 6)
+                    & (Feed.articles_per_week < 30)
+                    & (Feed.updated_at < three_hours_ago)
+                ),
+                (
+                    (Feed.articles_per_week >= 1)
+                    & (Feed.articles_per_week < 6)
+                    & (Feed.updated_at < one_day_ago)
+                ),
             ),
-            (
-                (Feed.articles_per_week >= 300) &
-                (Feed.updated_at <= ten_minutes_ago)
-            ),
-            (
-                (Feed.articles_per_week >= 150) &
-                (Feed.articles_per_week < 300) &
-                (Feed.updated_at < thirty_minutes_ago)
-            ),
-            (
-                (Feed.articles_per_week >= 90) &
-                (Feed.articles_per_week < 150) &
-                (Feed.updated_at < one_hour_ago)
-            ),
-            (
-                (Feed.articles_per_week >= 30) &
-                (Feed.articles_per_week < 90) &
-                (Feed.updated_at < two_hours_ago)
-            ),
-            (
-                (Feed.articles_per_week >= 6) &
-                (Feed.articles_per_week < 30) &
-                (Feed.updated_at < three_hours_ago)
-            ),
-            (
-                (Feed.articles_per_week >= 1) &
-                (Feed.articles_per_week < 6) &
-                (Feed.updated_at < one_day_ago)
-            )
         )
-    ).all()
+        .all()
+    )
 
     articles_fetched_this_minute = 0
     for feed in feeds:
-        print('fetching new articles for feed: ', feed.name)
-        print('feed_id: ', feed.id)
-        print('updated_at: ', feed.updated_at)
-        print('timespan since update: ', datetime.now() - feed.updated_at)
+        print("fetching new articles for feed: ", feed.name)
+        print("feed_id: ", feed.id)
+        print("updated_at: ", feed.updated_at)
+        print("timespan since update: ", datetime.now() - feed.updated_at)
 
         try:
             articles = fetch_articles(feed)
@@ -95,7 +99,7 @@ def fetch_new_articles():
                 articles_fetched_this_minute > 570
                 and datetime.now() - fetching_start_date < timedelta(minutes=1)
             ):
-                print('fetched 570+ articles - sleeping for a minute')
+                print("fetched 570+ articles - sleeping for a minute")
                 sleep(60)
                 articles_fetched_this_minute = 0
             elif datetime.now() - fetching_start_date > timedelta(minutes=1):
@@ -104,9 +108,8 @@ def fetch_new_articles():
 
             feed_article_save_status = parse_save_articles(articles, feed)
             print(feed_article_save_status)
-            articles_added = feed_article_save_status['articles added']
+            articles_added = feed_article_save_status["articles added"]
             articles_fetched_this_minute += articles_added
-            print('articles fetched this minute: ',
-                  articles_fetched_this_minute)
-    print('Every feed is up to date!')
+            print("articles fetched this minute: ", articles_fetched_this_minute)
+    print("Every feed is up to date!")
     storage.close()

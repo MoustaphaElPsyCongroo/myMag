@@ -1,27 +1,30 @@
 #!/usr/bin/python3
 """Index for general API info"""
+
+from flask import jsonify
+
+from api.v1.views import app_views
+from models import storage
 from models.feed import Feed
 from models.tag import Tag
 from models.user import User
-from models import storage
-from api.v1.views import app_views
-from api.v1.auth import login_required
-from flask import jsonify
 
 
-@app_views.route('/status', methods=['GET'])
+@app_views.route("/status", methods=["GET"])
 def status():
     """Status of the API"""
-    return jsonify({
-        'status': 'OK',
-    })
+    return jsonify(
+        {
+            "status": "OK",
+        }
+    )
 
 
-@app_views.route('/stats', methods=['GET'])
+@app_views.route("/stats", methods=["GET"])
 def number_objects():
     """Retrieves the number of each object by type"""
     classes = [Feed, Tag, User]
-    names = ['feeds', 'tags', 'users']
+    names = ["feeds", "tags", "users"]
 
     num_objs = {}
     for i in range(len(classes)):

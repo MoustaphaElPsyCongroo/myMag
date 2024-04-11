@@ -4,9 +4,11 @@
 
 class FeedInactiveError(Exception):
     """Raised when a feed is permanently inactive"""
+
     pass
 
 
 class FeedNotFoundError(Exception):
     """Raised when no feed with a specified id exists"""
+
     pass

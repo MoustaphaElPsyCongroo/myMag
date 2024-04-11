@@ -2,6 +2,8 @@ preparation
 env
 .env
 __pycache__
+.mypy_cache
+mypy.ini
 setup*.sql
 capable*.json
 client-secret.json

@@ -1,11 +1,14 @@
 #!/usr/bin/python3
 """Cronjob for feed stat extraction"""
-from datetime import timedelta, datetime
+
+import logging
+from datetime import datetime, timedelta
+
+from sqlalchemy import func
+
+from models import storage
 from models.article import Article
 from models.feed import Feed
-from models import storage
-from sqlalchemy import func
-import logging
 
 today = datetime.now()
 one_week_ago = today - timedelta(weeks=1)
@@ -31,8 +34,8 @@ def extract_weekly_stats():
     feeds = storage.query(Feed).all()
 
     for feed in feeds:
-        logging.info('feed name: %s', feed.name)
-        logging.info('feed id: %s', feed.id)
+        logging.info("feed name: %s", feed.name)
+        logging.info("feed id: %s", feed.id)
         shares_of_week = (
             storage.query(Article.shares)
             .filter(Article.feed_id == feed.id)
@@ -47,12 +50,11 @@ def extract_weekly_stats():
             .scalar()
         )
 
-        logging.info('articles of week count: %s', articles_of_week_count)
+        logging.info("articles of week count: %s", articles_of_week_count)
 
         calc_articles_of_week(feed, articles_of_week_count)
         if articles_of_week_count > 0 and feed.created_at <= five_days_ago:
-            calc_avg_shares_of_week(
-                feed, shares_of_week, articles_of_week_count)
+            calc_avg_shares_of_week(feed, shares_of_week, articles_of_week_count)
         storage.save()
     storage.close()
 

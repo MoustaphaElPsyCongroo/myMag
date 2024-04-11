@@ -1,16 +1,17 @@
 #!/usr/bin/python3
-from api.v1.views import app_views
-from api.v1.utils.pagination import paginate
-from api.v1.utils.feed_articles import serialize_paginated_articles
-from flask import jsonify, abort, request
-from models import storage
-from models.article import Article
-from models.tag import TagLikeAssociation, TagDislikeAssociation
-from models.user import User
+from flask import abort, jsonify, request
 from sqlalchemy import func
 
+from api.v1.utils.feed_articles import serialize_paginated_articles
+from api.v1.utils.pagination import paginate
+from api.v1.views import app_views
+from models import storage
+from models.article import Article
+from models.tag import TagDislikeAssociation, TagLikeAssociation
+from models.user import User
 
-@app_views.route('/users/<user_id>/articles/liked/<int:page>')
+
+@app_views.route("/users/<user_id>/articles/liked/<int:page>")
 def get_liked_articles(user_id, page):
     """GET all liked articles of a user"""
     user = storage.get(User, user_id)
@@ -20,9 +21,7 @@ def get_liked_articles(user_id, page):
         abort(405, description="This route is paginated. Select a page")
 
     liked_articles_query = (
-        storage.query(Article)
-        .join(User.liked_articles)
-        .filter(User.id == user_id)
+        storage.query(Article).join(User.liked_articles).filter(User.id == user_id)
     )
 
     liked_articles_count_query = (
@@ -32,22 +31,22 @@ def get_liked_articles(user_id, page):
     )
 
     liked_articles_paginated = paginate(
-        liked_articles_query, liked_articles_count_query, page, 30)
+        liked_articles_query, liked_articles_count_query, page, 30
+    )
 
     if liked_articles_paginated.total == 0:
         abort(404, description="No liked articles yet")
 
-    liked_articles = serialize_paginated_articles(
-        liked_articles_paginated, user)
+    liked_articles = serialize_paginated_articles(liked_articles_paginated, user)
     return jsonify(liked_articles), 200
 
 
-@app_views.route('/users/<user_id>/articles/liked', methods=['POST'])
+@app_views.route("/users/<user_id>/articles/liked", methods=["POST"])
 def like_article(user_id):
     """Make a user like an article, incrementing its tags' likes count
 
-        body:
-            article_id: <article_id>
+    body:
+        article_id: <article_id>
     """
     user = storage.get(User, user_id)
     if user is None:
@@ -56,11 +55,11 @@ def like_article(user_id):
     try:
         req = request.get_json()
         if req is None:
-            abort(400, description='Not a JSON')
-        elif req.get('article_id') is None:
-            abort(400, description='Missing article_id')
+            abort(400, description="Not a JSON")
+        elif req.get("article_id") is None:
+            abort(400, description="Missing article_id")
         else:
-            article_id = req.get('article_id')
+            article_id = req.get("article_id")
             article = storage.get(Article, article_id)
             liked_articles = user.liked_articles
             previously_disliked = False
@@ -80,28 +79,26 @@ def like_article(user_id):
             tag_counts = {}
             for tag in tags:
                 slot = {}
-                slot['name'] = tag.name
-                slot['like_count_from_article'] = 1
-                slot['like_count_from_user'] = 0
-                slot['dislike_count_from_article'] = 0
-                slot['dislike_count_from_user'] = 0
+                slot["name"] = tag.name
+                slot["like_count_from_article"] = 1
+                slot["like_count_from_user"] = 0
+                slot["dislike_count_from_article"] = 0
+                slot["dislike_count_from_user"] = 0
 
                 for asso in tag.tag_dislike_associations:
                     if asso.user == user:
                         if previously_disliked:
                             asso.dislike_count_from_article -= 1
-                        slot['dislike_count_from_article'] = \
+                        slot["dislike_count_from_article"] = (
                             asso.dislike_count_from_article
-                        slot['dislike_count_from_user'] = \
-                            asso.dislike_count_from_user
+                        )
+                        slot["dislike_count_from_user"] = asso.dislike_count_from_user
                         break
                 for asso in tag.tag_like_associations:
                     if asso.user == user:
                         asso.like_count_from_article += 1
-                        slot['like_count_from_article'] = \
-                            asso.like_count_from_article
-                        slot['like_count_from_user'] = \
-                            asso.like_count_from_user
+                        slot["like_count_from_article"] = asso.like_count_from_article
+                        slot["like_count_from_user"] = asso.like_count_from_user
                         break
                 else:
                     asso = TagLikeAssociation(like_count_from_article=1)
@@ -111,13 +108,11 @@ def like_article(user_id):
             liked_articles.append(article)
             storage.save()
     except ValueError:
-        abort(400, description='Not a JSON')
+        abort(400, description="Not a JSON")
     return jsonify(tag_counts), 200
 
 
-@app_views.route(
-    '/users/<user_id>/articles/liked/<article_id>',
-    methods=['DELETE'])
+@app_views.route("/users/<user_id>/articles/liked/<article_id>", methods=["DELETE"])
 def delete_like_article(user_id, article_id):
     """Make a user cancel their like on an article"""
     user = storage.get(User, user_id)
@@ -137,21 +132,19 @@ def delete_like_article(user_id, article_id):
     tag_counts = {}
     for tag in tags:
         slot = {}
-        slot['name'] = tag.name
-        slot['dislike_count_from_article'] = 0
-        slot['dislike_count_from_user'] = 0
+        slot["name"] = tag.name
+        slot["dislike_count_from_article"] = 0
+        slot["dislike_count_from_user"] = 0
         for asso in tag.tag_like_associations:
             if asso.user == user:
                 asso.like_count_from_article -= 1
-                slot['like_count_from_article'] = \
-                    asso.like_count_from_article
-                slot['like_count_from_user'] = asso.like_count_from_user
+                slot["like_count_from_article"] = asso.like_count_from_article
+                slot["like_count_from_user"] = asso.like_count_from_user
                 break
         for asso in tag.tag_dislike_associations:
             if asso.user == user:
-                slot['dislike_count_from_article'] = \
-                    asso.dislike_count_from_article
-                slot['dislike_count_from_user'] = asso.dislike_count_from_user
+                slot["dislike_count_from_article"] = asso.dislike_count_from_article
+                slot["dislike_count_from_user"] = asso.dislike_count_from_user
                 break
         tag_counts[tag.id] = slot
     user.liked_articles.remove(article)
@@ -159,7 +152,7 @@ def delete_like_article(user_id, article_id):
     return jsonify(tag_counts), 200
 
 
-@app_views.route('/users/<user_id>/articles/disliked/<int:page>')
+@app_views.route("/users/<user_id>/articles/disliked/<int:page>")
 def get_disliked_articles(user_id, page):
     """GET all disliked articles of a user"""
     user = storage.get(User, user_id)
@@ -169,9 +162,7 @@ def get_disliked_articles(user_id, page):
         abort(405, description="This route is paginated. Select a page")
 
     disliked_articles_query = (
-        storage.query(Article)
-        .join(User.disliked_articles)
-        .filter(User.id == user_id)
+        storage.query(Article).join(User.disliked_articles).filter(User.id == user_id)
     )
 
     disliked_articles_count_query = (
@@ -181,22 +172,22 @@ def get_disliked_articles(user_id, page):
     )
 
     disliked_articles_paginated = paginate(
-        disliked_articles_query, disliked_articles_count_query, page, 30)
+        disliked_articles_query, disliked_articles_count_query, page, 30
+    )
 
     if disliked_articles_paginated.total == 0:
         abort(404, description="No disliked articles yet")
 
-    disliked_articles = serialize_paginated_articles(
-        disliked_articles_paginated, user)
+    disliked_articles = serialize_paginated_articles(disliked_articles_paginated, user)
     return jsonify(disliked_articles), 200
 
 
-@app_views.route('/users/<user_id>/articles/disliked', methods=['POST'])
+@app_views.route("/users/<user_id>/articles/disliked", methods=["POST"])
 def dislike_article(user_id):
     """Make a user dislike an article, incrementing its tags' dislikes count
 
-        body:
-            article_id: <article_id>
+    body:
+        article_id: <article_id>
     """
     user = storage.get(User, user_id)
     if user is None:
@@ -205,11 +196,11 @@ def dislike_article(user_id):
     try:
         req = request.get_json()
         if req is None:
-            abort(400, description='Not a JSON')
-        elif req.get('article_id') is None:
-            abort(400, description='Missing article_id')
+            abort(400, description="Not a JSON")
+        elif req.get("article_id") is None:
+            abort(400, description="Missing article_id")
         else:
-            article_id = req.get('article_id')
+            article_id = req.get("article_id")
             article = storage.get(Article, article_id)
             disliked_articles = user.disliked_articles
             previously_liked = False
@@ -229,28 +220,26 @@ def dislike_article(user_id):
             tag_counts = {}
             for tag in tags:
                 slot = {}
-                slot['name'] = tag.name
-                slot['dislike_count_from_article'] = 1
-                slot['dislike_count_from_user'] = 0
-                slot['like_count_from_article'] = 0
-                slot['like_count_from_user'] = 0
+                slot["name"] = tag.name
+                slot["dislike_count_from_article"] = 1
+                slot["dislike_count_from_user"] = 0
+                slot["like_count_from_article"] = 0
+                slot["like_count_from_user"] = 0
 
                 for asso in tag.tag_like_associations:
                     if asso.user == user:
                         if previously_liked:
                             asso.like_count_from_article -= 1
-                        slot['like_count_from_article'] = \
-                            asso.like_count_from_article
-                        slot['like_count_from_user'] = \
-                            asso.like_count_from_user
+                        slot["like_count_from_article"] = asso.like_count_from_article
+                        slot["like_count_from_user"] = asso.like_count_from_user
                         break
                 for asso in tag.tag_dislike_associations:
                     if asso.user == user:
                         asso.dislike_count_from_article += 1
-                        slot['dislike_count_from_article'] = \
+                        slot["dislike_count_from_article"] = (
                             asso.dislike_count_from_article
-                        slot['dislike_count_from_user'] = \
-                            asso.dislike_count_from_user
+                        )
+                        slot["dislike_count_from_user"] = asso.dislike_count_from_user
                         break
                 else:
                     asso = TagDislikeAssociation(dislike_count_from_article=1)
@@ -260,13 +249,11 @@ def dislike_article(user_id):
             disliked_articles.append(article)
             storage.save()
     except ValueError:
-        abort(400, description='Not a JSON')
+        abort(400, description="Not a JSON")
     return jsonify(tag_counts), 200
 
 
-@app_views.route(
-    '/users/<user_id>/articles/disliked/<article_id>',
-    methods=['DELETE'])
+@app_views.route("/users/<user_id>/articles/disliked/<article_id>", methods=["DELETE"])
 def delete_dislike_article(user_id, article_id):
     """Make a user cancel their dislike on an article"""
     user = storage.get(User, user_id)
@@ -286,20 +273,19 @@ def delete_dislike_article(user_id, article_id):
     tag_counts = {}
     for tag in tags:
         slot = {}
-        slot['name'] = tag.name
-        slot['like_count_from_article'] = 0
-        slot['like_count_from_user'] = 0
+        slot["name"] = tag.name
+        slot["like_count_from_article"] = 0
+        slot["like_count_from_user"] = 0
         for asso in tag.tag_dislike_associations:
             if asso.user == user:
                 asso.dislike_count_from_article -= 1
-                slot['dislike_count_from_article'] = \
-                    asso.dislike_count_from_article
-                slot['dislike_count_from_user'] = asso.dislike_count_from_user
+                slot["dislike_count_from_article"] = asso.dislike_count_from_article
+                slot["dislike_count_from_user"] = asso.dislike_count_from_user
                 break
         for asso in tag.tag_like_associations:
             if asso.user == user:
-                slot['like_count_from_article'] = asso.like_count_from_article
-                slot['like_count_from_user'] = asso.like_count_from_user
+                slot["like_count_from_article"] = asso.like_count_from_article
+                slot["like_count_from_user"] = asso.like_count_from_user
                 break
         tag_counts[tag.id] = slot
     user.disliked_articles.remove(article)
