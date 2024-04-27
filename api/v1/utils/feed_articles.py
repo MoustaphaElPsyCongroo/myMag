@@ -391,7 +391,7 @@ def parse_save_articles(entries, feed):
             tag_confidence = tag_confidence_couple[1]
             if tag_confidence_couple[1] is None:
                 tag_type = "keyword"
-                tag_confidence = 0.3
+                tag_confidence = 0.9
 
             assoc = TagArticleAssociation(confidence=tag_confidence)
             assoc.tag = None
