@@ -3,7 +3,6 @@
 
 import logging
 import os
-from datetime import datetime
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from decouple import config
@@ -12,7 +11,6 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
 
-import api.v1.cronjobs as cronjobs
 from api.v1.views import app_views
 from models import storage
 
@@ -33,12 +31,13 @@ logging.getLogger("api.v1.cronjobs.update_article_scores").setLevel(logging.INFO
 logging.getLogger("api.v1.utils.user_articles").setLevel(logging.INFO)
 
 scheduler = BackgroundScheduler(job_defaults=job_defaults)
-scheduler.add_job(cronjobs.get_random_header_list, "cron", day=1, hour=0)
-# scheduler.add_job(cronjobs.fetch_new_articles, 'interval',
-#                   minutes=10, next_run_time=datetime.now())
-scheduler.add_job(cronjobs.update_article_scores, "interval", minutes=10)
-scheduler.add_job(cronjobs.extract_weekly_stats, "cron", hour=0)
-scheduler.add_job(cronjobs.populate_tags, "cron", hour=5, next_run_time=datetime.now())
+# scheduler.add_job(cronjobs.get_random_header_list, "cron", day=1, hour=0)
+# scheduler.add_job(
+#     cronjobs.fetch_new_articles, "interval", minutes=10, next_run_time=datetime.now()
+# )
+# scheduler.add_job(cronjobs.update_article_scores, "interval", minutes=10)
+# scheduler.add_job(cronjobs.extract_weekly_stats, "cron", hour=0)
+# scheduler.add_job(cronjobs.populate_tags, "cron", hour=5, next_run_time=datetime.now())
 scheduler.start()
 
 
