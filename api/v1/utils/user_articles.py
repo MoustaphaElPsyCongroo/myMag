@@ -38,8 +38,8 @@ def calculate_initial_article_score_for_user(user, article):
         .filter(Article.id == article.id)
         .first()
     )
-    if asso:
-        print("article title dans user_articles test: ", asso.article.title)
+    # if asso:
+    #     print("article title dans user_articles test: ", asso.article.title)
     if not asso:
         asso = ArticleUserScoreAssociation()
         asso.article = article
@@ -67,22 +67,24 @@ def calculate_timerot_score(article_date, last_scoring_date, scoring_start_date,
     logging.info("article_date %s", article_date)
     logging.info("last scoring date %s", last_scoring_date)
 
-    # new score after percentage loss = score * (1 - percentage)**time
-    # time being the days after 16h or the hours after 30 min. We are not
-    # guaranteed to update scores regularly (update frequency depending on user
-    # connection frequency) so updating must take into account hours
     if article_date_delta.days > 0:
-        single_day_percentage_points = 25
-        days = article_date_delta.days - 1
+        percentage = 25 / 100
+        days_penalty = 5 * article_date_delta.days
         # weeks = article_date_delta.days // 7
+
+        # If the article date is more recent than the last time we updated scores
+        # (while still being older than a day), it means we didn't cumulatively
+        # calculate the score for the first day. So do it before calculating
+        # the score for subsequent days
         if article_date > last_scoring_date:
             score = calculate_timerot_score_for_firstday(
                 article_date, last_scoring_date, one_hour_ago, score
             )
         if last_scoring_delta.days > 0:
-            percentage = (single_day_percentage_points + days * 5) / 100
-            logging.info("%s days scoring percentage %s", days + 1, percentage)
-            score *= (1 - percentage) ** last_scoring_delta.days
+            logging.info(
+                "%s days scoring penalty: %s", article_date_delta.days, days_penalty
+            )
+            score = score * (1 - percentage) - days_penalty
     elif article_date <= one_hour_ago and last_scoring_date <= one_hour_ago:
         score = calculate_timerot_score_for_firstday(
             article_date, last_scoring_date, one_hour_ago, score
@@ -157,18 +159,25 @@ def calculate_updated_article_scores(article_user_score_association):
     Score rules:
     - Default score: 100
         Date
-        The default score acts as a recency bonus. Article loses this bonus
-        due to time rot.
+        The default score acts as a recency bonus. Article loses score
+        due to time rot. For the first day this loss is cumulative, each
+        percentage loss adds to the previous. After a day it stays cumulative
+        only if user reads articles each day. Rationale: very active user has more
+        chance to read old articles so can afford to see them lose score to time
+        more quickly; occasional user will have more older articles buried under new
+        ones, so slower timerot will give them more chance to see them if they
+        are relevant.
         - Article older than 30 minutes: -10% bonus pts
         - Older than 1 hour: -8% pts
         - Each subsequent hour until 3h excl: -8% pts
         - Each subsequent hour from 3h until 8h excl: -6%
         - Each subsequent hour from 8h until 16h incl: -7%
-        - After 16h, article loses 25% per subsequent day, with +5
-        percentage points per day
-        (so an article published 8h ago = 52 pts)
+        - After 16h, article loses 25% of its TOTAL score (score from tags
+        included) + (5 * number of days) points each day (so an article at 100
+        pts published 8h ago = 52 pts)
         (article published 16h ago = 29 pts)
-        (article published 1w ago = 0 bonus pts)
+        (article published 2d ago = 3 pts)
+        (article published 3d ago = -12.75 pts)
 
         Tag
         Pts from likes on articles and tags are added to this bonus score
@@ -180,54 +189,48 @@ def calculate_updated_article_scores(article_user_score_association):
         (Exemple
             "tags": [
                 {"confidence": 0.571891, "name": "Science"},
-                {"confidence": 0.3, "name": "Mars"},
+                {"confidence": 0.9, "name": "Mars"},
                 {"confidence": 0.793886, "name": "Business & Industrial"},
                 {"confidence": 0.793886, "name": "Space Technology"},
                 {"confidence": 0.397247, "name": "Technology News"},
                 {"confidence": 0.793886, "name": "Aerospace & Defense"},
                 {"confidence": 0.397247, "name": "News"},
                 {"confidence": 0.571891, "name": "Astronomy"},
-                {"confidence": 0.3, "name": "MOXIE"}
+                {"confidence": 0.9, "name": "MOXIE"}
             ]
-            1 like on this article: 57 pts
-            1 like on article with same tags: 66 pts
-            1 like on Science: + 11.4 pts = 77 pts
-            If article with same tags was published now: 177 pts.
+            1 like on this article: 61 pts
+            1 like on article with same tags: 69 pts
+            1 like on Science: + 11.4 pts = 80 pts
+            If article with same tags was published now: 180 pts.
             After 8h: 129 pts
-            After 12 days: 77 pts.
+            After 1d: 92 pts
+            After 4d: 2 pts
 
-            1 dislike on Aerospace & Defense with article like kept: 161
-            pts (-15.8)
-            1 dislike on some earlier article with 3 first tags in common,
-            other different with same confidence values: -33 pts to this
-            article (128 pts)
-            3 dislikes on Aerospace & Defense: -47.7.
+            Same for dislikes:
+            +1 dislike on Aerospace & Defense with previous article like kept: 64
+            pts from tags (-15.8)
+            +1 dislike on some earlier article with 3 first tags in common,
+            other different with same confidence values: -69.5 pts to the new
+            article's tags (-5 pts for tags total)
+            3 dislikes on Mars: -54 (-59 total for the article's tags)
 
             Total:
-            Article published now: 81
-            After 8h: 33 pts
-            After 2d: 0 pts
+            Such article published now: 41 pts
+            After 30 min: 31 pts
+            After 3h: 12 pts
+            After 6h: exactly 0 pts
         )
-        Article at 0 will be automatically marked as read
+        Article at 0 or less will be automatically marked as read
     """
+    # Calculate updated score_from_tags and add it to the pure score
     asso = article_user_score_association
-    score_from_time = asso.score_from_time or 100
-    score_from_tags = 0
+    previous_score_without_tags = asso.total_score - asso.score_from_tags
     scoring_start_date = datetime.now()
 
-    logging.info("score before calculating: %s", asso.total_score)
-
-    # Articles start with no last_scoring_date by default
-    if asso.last_scoring_date:
-        logging.info("Calculating time rot")
-        score_from_time = calculate_timerot_score(
-            asso.article.created_at,
-            asso.last_scoring_date,
-            scoring_start_date,
-            score_from_time,
-        )
-        score_from_time = round(score_from_time)
-        logging.info("score after time rot calculated: %s", score_from_time)
+    logging.info("total score before calculating: %s", asso.total_score)
+    logging.info(
+        "score without tags before calculating: %s", previous_score_without_tags
+    )
 
     tag_article_assos = asso.article.article_tag_associations
     like_assos = []
@@ -269,11 +272,27 @@ def calculate_updated_article_scores(article_user_score_association):
     logging.info("Dislike score: %s", dislike_score)
 
     score_from_tags = round(like_score - dislike_score)
-    total_score = round(score_from_tags + score_from_time)
+    updated_score = previous_score_without_tags + score_from_tags
+
+    logging.info("Score from tags: %s", score_from_tags)
+    logging.info("Updated score before timerot: %s", updated_score)
+
+    # Substract the timerot from the new total score
+    # Articles start with no last_scoring_date by default but should have one
+    # when fetched so adding this check only as a fallback
+    if asso.last_scoring_date:
+        logging.info("Calculating time rot")
+        updated_score = calculate_timerot_score(
+            asso.article.created_at,
+            asso.last_scoring_date,
+            scoring_start_date,
+            updated_score,
+        )
+
+    total_score = round(updated_score)
     logging.info("total score %s", total_score)
     logging.info("------end------\n")
     return {
         "score_from_tags": score_from_tags,
-        "score_from_time": score_from_time,
         "total_score": total_score,
     }

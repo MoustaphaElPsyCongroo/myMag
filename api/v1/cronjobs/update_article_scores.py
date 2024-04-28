@@ -101,7 +101,6 @@ def update_article_scores():
 
             scores = calculate_updated_article_scores(asso)
 
-            asso.score_from_time = scores["score_from_time"]
             asso.score_from_tags = scores["score_from_tags"]
             asso.total_score = scores["total_score"]
             asso.last_scoring_date = datetime.now()
