@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 """Routes for user_articles relationships"""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import abort, jsonify, request
 from sqlalchemy import func
@@ -9,6 +9,7 @@ from sqlalchemy.orm import contains_eager
 
 from api.v1.utils.feed_articles import serialize_articles, serialize_paginated_articles
 from api.v1.utils.pagination import paginate
+from api.v1.utils.user_articles import calculate_updated_article_scores_for_user
 from api.v1.views import app_views
 from models import storage
 from models.article import Article, ArticleUserScoreAssociation
@@ -118,6 +119,19 @@ def get_user_unread_articles(user_id):
 
     if user is None:
         abort(404, description="The specified user doesn't exist")
+
+    two_hours_ago = datetime.now() - timedelta(hours=2)
+
+    # last_scoring_date is null if user never subscribed to feeds (just created
+    # their account for example)
+    try:
+        last_scoring_date = user.last_scoring_date
+    except AttributeError:
+        last_scoring_date = None
+
+    if last_scoring_date and last_scoring_date <= two_hours_ago:
+        calculate_updated_article_scores_for_user(user)
+        storage.save()
 
     all_user_articles = (
         storage.query(Article)

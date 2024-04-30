@@ -1,5 +1,5 @@
 import { json } from '@remix-run/node';
-import { useLoaderData } from '@remix-run/react';
+import { useLoaderData, useNavigation } from '@remix-run/react';
 import { authenticator } from '~/features/auth/auth.server';
 import { Article, links as articleLinks } from '~/features/main/Article';
 import { dislikeArticle, likeArticle, readArticle, undislikeArticle, unlikeArticle } from '../utils/user_articles.server';
@@ -32,7 +32,7 @@ export const action = async ({ request }) => {
   const { _action, ...values } = Object.fromEntries(formData);
   const articleId = values.id;
 
-  console.log(_action);
+  // console.log(_action);
 
   switch (_action) {
     case 'like_article': {
@@ -77,12 +77,16 @@ export const action = async ({ request }) => {
 export default function ArticlesRoute () {
   const articlesData = useLoaderData();
   const articles = articlesData.results;
+  const loadingState = useNavigation();
 
   return (
     <>
       <h2>{articlesData.total} new articles</h2>
       <div className='articles-container'>
-        {articles.map(article => <Article key={article.id} article={article} />)}
+        {loadingState === 'loading' ?
+        <p>It's been a while.<br />Let's take the time to sort your articles...</p>
+        :
+        articles.map(article => <Article key={article.id} article={article} />)}
       </div>
     </>
   );
