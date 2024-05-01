@@ -1,5 +1,5 @@
 import { Link, useFetcher } from '@remix-run/react';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { ClientOnly } from 'remix-utils';
 import { useInView } from 'react-intersection-observer';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -28,7 +28,7 @@ export const Article = ({ article }) => {
   const { ref, inView, entry } = useInView();
   const fetcher = useFetcher();
 
-  const markAsReadOnScroll = () => {
+  const markAsReadOnScroll = useCallback(() => {
     if (inView && !articleReadRef.current) {
       const bodyTop = document.body.getBoundingClientRect().top;
       const articleTop = entry.target.getBoundingClientRect().top;
@@ -49,7 +49,7 @@ export const Article = ({ article }) => {
         { method: 'post' });
       }
     }
-  };
+  }, [fetcher, inView]);
 
   const markAsReadOnClick = () => {
     const articleId = article.id;
@@ -93,7 +93,7 @@ export const Article = ({ article }) => {
     if (typeof window !== 'undefined') {
       window.addEventListener('scrollend', markAsReadOnScroll);
     }
-  }, [markAsReadOnScroll]);
+  }, [articleRead, markAsReadOnScroll]);
 
   return (
     <div className='article' ref={ref} data-id={article.id} data-title={article.title}>
