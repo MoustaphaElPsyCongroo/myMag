@@ -65,7 +65,6 @@ class ArticleUserScoreAssociation(Base):
     __tablename__ = 'article_score'
     user_id = Column(ForeignKey('users.id'), primary_key=True)
     article_id = Column(ForeignKey('articles.id'), primary_key=True)
-    score_from_time = Column(Integer, default=100, nullable=False)
     score_from_tags = Column(Integer, default=0, nullable=False)
     total_score = Column(Integer, default=100, nullable=False)
     last_scoring_date = Column(DateTime, default=datetime.now, nullable=False)

@@ -22,7 +22,6 @@ def calculate_initial_article_score(article, feed):
         logging.info("Calculating initial score for article_id: %s", article.id)
         logging.info("title: %s", article.title)
         scores = calculate_updated_article_scores(article_user_score_association)
-        article_user_score_association.score_from_time = scores["score_from_time"]
         article_user_score_association.score_from_tags = scores["score_from_tags"]
         article_user_score_association.total_score = scores["total_score"]
         article_user_score_association.last_scoring_date = datetime.now()
@@ -49,7 +48,6 @@ def calculate_initial_article_score_for_user(user, article):
     logging.info("User id: %s", user.id)
     logging.info("title: %s", article.title)
     scores = calculate_updated_article_scores(asso)
-    asso.score_from_time = scores["score_from_time"]
     asso.score_from_tags = scores["score_from_tags"]
     asso.total_score = scores["total_score"]
     asso.last_scoring_date = datetime.now()
@@ -224,10 +222,12 @@ def calculate_updated_article_scores(article_user_score_association):
     """
     # Calculate updated score_from_tags and add it to the pure score
     asso = article_user_score_association
-    previous_score_without_tags = asso.total_score - asso.score_from_tags
+    previous_total_score = asso.total_score or 100
+    previous_score_from_tags = asso.score_from_tags or 0
+    previous_score_without_tags = previous_total_score - previous_score_from_tags
     scoring_start_date = datetime.now()
 
-    logging.info("total score before calculating: %s", asso.total_score)
+    logging.info("total score before calculating: %s", previous_total_score)
     logging.info(
         "score without tags before calculating: %s", previous_score_without_tags
     )
