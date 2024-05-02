@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 from flask import abort, jsonify, request
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import contains_eager
 
 from api.v1.utils.feed_articles import serialize_articles, serialize_paginated_articles
@@ -92,16 +93,37 @@ def mark_article_as_read(user_id):
             abort(400, description="Missing article_id")
         else:
             article_id = req.get("article_id")
-            article = storage.get(Article, article_id)
 
-            if article is None:
-                abort(404, description="The specified article doesn't exist")
+            read_ids = (
+                storage.query(Article.id)
+                .join(User.read_articles)
+                .filter(User.id == user_id)
+            )
 
-            user.read_articles.append(article)
+            article_to_mark = (
+                storage.query(Article)
+                .join(User, ArticleUserScoreAssociation.user)
+                .join(Article, ArticleUserScoreAssociation.article)
+                .filter(User.id == user_id)
+                .filter(Article.id == article_id)
+                .filter(Article.id.not_in(read_ids))
+                .first()
+            )
+
+            # Already marked as read
+            if article_to_mark is None:
+                return {}, 202
+
+            user.read_articles.append(article_to_mark)
             user.last_read_date = datetime.now()
             storage.save()
+
     except ValueError:
         abort(400, description="Not a JSON")
+    except IntegrityError:
+        # TODO: add a warning here with logger for the message
+        storage.rollback()
+        return {}, 202
     return {}, 200
 
 
@@ -188,4 +210,25 @@ def mark_article_as_unread(user_id, article_id):
             storage.save()
     except ValueError:
         abort(400, description="Not a JSON")
+    return {}, 200
+
+
+@app_views.route("/users/<user_id>/articles/unread", methods=["DELETE"])
+def mark_all_articles_as_unread(user_id):
+    """Mark all read articles of an user as unread"""
+    user = storage.get(User, user_id)
+    if user is None:
+        abort(404, description="The specified user doesn't exist")
+
+    read_articles = (
+        storage.query(Article).join(User.read_articles).filter(User.id == user_id).all()
+    )
+
+    if not read_articles:
+        abort(404, description="No read articles")
+
+    for article in read_articles:
+        user.read_articles.remove(article)
+    storage.save()
+
     return {}, 200

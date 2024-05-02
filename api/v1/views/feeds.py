@@ -135,3 +135,16 @@ def delete_feed(feed_id):
         storage.delete(feed)
         storage.save()
         return {}, 200
+
+
+@app_views.route("/feeds", methods=["DELETE"])
+def delete_all_feeds():
+    """DELETE all feeds from db"""
+    feeds = storage.query(Feed).all()
+    if feeds is None:
+        abort(404)
+    else:
+        for feed in feeds:
+            storage.delete(feed)
+        storage.save()
+        return {}, 200
