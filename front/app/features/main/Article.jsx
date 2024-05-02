@@ -28,37 +28,6 @@ export const Article = ({ article }) => {
   const { ref, inView, entry } = useInView();
   const fetcher = useFetcher();
 
-  const markAsReadOnScroll = () => {
-    if (inView && !articleReadRef.current) {
-      const bodyTop = document.body.getBoundingClientRect().top;
-      const articleTop = entry.target.getBoundingClientRect().top;
-      const articleOffset = articleTop - bodyTop;
-      const documentHeight = document.body.scrollHeight;
-      const scrollY = window.scrollY;
-      const almostAtBottom =
-        550 + entry.target.offsetHeight + scrollY > documentHeight;
-
-      if (
-        !articleRead &&
-        fetcher.state !== 'submitting' &&
-        (scrollY > articleOffset || almostAtBottom)
-      ) {
-        const articleId = entry.target.dataset.id;
-        // console.log(articleReadRef.current);
-        // console.log('marking as read:', entry.target.dataset.title);
-        entry.target.classList.add('article-read');
-        setArticleRead(true);
-        fetcher.submit(
-          {
-            _action: 'read_article',
-            id: articleId,
-          },
-          { method: 'post' }
-        );
-      }
-    }
-  };
-
   const markAsReadOnClick = () => {
     const articleId = article.id;
     if (!articleRead) {
@@ -101,7 +70,35 @@ export const Article = ({ article }) => {
   };
 
   useEffect(() => {
+    const markAsReadOnScroll = () => {
+      if (inView && !articleReadRef.current) {
+        const bodyTop = document.body.getBoundingClientRect().top;
+        const articleTop = entry.target.getBoundingClientRect().top;
+        const articleOffset = articleTop - bodyTop;
+        const documentHeight = document.body.scrollHeight;
+        const scrollY = window.scrollY;
+        const almostAtBottom =
+          550 + entry.target.offsetHeight + scrollY > documentHeight;
+
+        if (!articleRead && (scrollY > articleOffset || almostAtBottom)) {
+          const articleId = entry.target.dataset.id;
+          // console.log(articleReadRef.current);
+          // console.log('marking as read:', entry.target.dataset.title);
+          entry.target.classList.add('article-read');
+          setArticleRead(true);
+          fetcher.submit(
+            {
+              _action: 'read_article',
+              id: articleId,
+            },
+            { method: 'post' }
+          );
+        }
+      }
+    };
+
     articleReadRef.current = articleRead;
+
     if (typeof window !== 'undefined') {
       window.addEventListener('scroll', markAsReadOnScroll);
     }
@@ -109,7 +106,7 @@ export const Article = ({ article }) => {
     return () => {
       window.removeEventListener('scroll', markAsReadOnScroll);
     };
-  });
+  }, [articleRead, fetcher, inView, entry?.target]);
 
   return (
     <div

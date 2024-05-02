@@ -1,6 +1,6 @@
 import { json } from '@remix-run/node';
 import { useLoaderData, useFetcher } from '@remix-run/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { authenticator } from '~/features/auth/auth.server';
 import { Article, links as articleLinks } from '~/features/main/Article';
 import { ArticleScroller } from '~/features/main/ArticleScroller';
@@ -95,7 +95,7 @@ export const action = async ({ request }) => {
     }
     case 'read_article': {
       const { readData, readStatus } = await readArticle(userId, articleId);
-      if (readStatus !== 200) {
+      if (readStatus !== 200 && readStatus !== 202) {
         throw json(readData.error, {
           status: readStatus,
           statusText: readData.error,
@@ -115,7 +115,7 @@ export default function ArticlesRoute() {
   const fetcher = useFetcher();
 
   const [articles, setArticles] = useState(articlesData.results);
-  const [noNewArticles, setNoNewArticles] = useState(false);
+  const [noNewArticles, setNoNewArticles] = useState(articlesData.total === 0);
 
   useEffect(() => {
     if (!fetcher.data || fetcher.state === 'loading') {
@@ -142,17 +142,17 @@ export default function ArticlesRoute() {
     }
   }, [fetcher.data, fetcher.state]);
 
-  const loadMoreArticles = () => {
-    if (!noNewArticles) {
+  const loadMoreArticles = useCallback(() => {
+    if (!noNewArticles && fetcher.state !== 'loading') {
       fetcher.load('/articles');
     }
-  };
+  }, [fetcher, noNewArticles]);
 
   return (
     <>
       <h2>{articlesData.total} new articles </h2>
       <div className="articles-container">
-        {articles && (
+        {articles && articlesData.total > 0 && (
           <ArticleScroller
             loadMoreArticles={loadMoreArticles}
             isMoreArticlesLoading={fetcher.state === 'loading'}

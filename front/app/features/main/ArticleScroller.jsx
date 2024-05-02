@@ -1,34 +1,39 @@
 import { useEffect } from 'react';
 
-export const ArticleScroller = (props) => {
-  const loadMoreArticlesOnScroll = () => {
-    const documentHeight = document.body.scrollHeight;
-    const scrollY = window.scrollY;
-    const bottom = scrollY + window.innerHeight;
-    const almostAtBottom = 800 + bottom > documentHeight;
-
-    if (almostAtBottom && !props.isMoreArticlesLoading) {
-      props.loadMoreArticles();
-    }
-  };
-
+export const ArticleScroller = ({
+  isMoreArticlesLoading,
+  noNewArticles,
+  loadMoreArticles,
+  children,
+}) => {
   useEffect(() => {
+    const loadMoreArticlesOnScroll = () => {
+      const documentHeight = document.body.scrollHeight;
+      const scrollY = window.scrollY;
+      const bottom = scrollY + window.innerHeight;
+      const almostAtBottom = 800 + bottom > documentHeight;
+
+      if (almostAtBottom) {
+        loadMoreArticles();
+      }
+    };
+
     if (typeof window !== 'undefined') {
-      window.addEventListener('scroll', loadMoreArticlesOnScroll);
+      window.addEventListener('scrollend', loadMoreArticlesOnScroll);
     }
 
     return () => {
-      window.removeEventListener('scroll', loadMoreArticlesOnScroll);
+      window.removeEventListener('scrollend', loadMoreArticlesOnScroll);
     };
-  });
+  }, [loadMoreArticles]);
 
   return (
     <>
-      {props.children}
-      {!props.noNewArticles && props.isMoreArticlesLoading && (
+      {children}
+      {(!noNewArticles || isMoreArticlesLoading) && (
         <p>Loading new articles…</p>
       )}
-      {props.noNewArticles && <p>No new articles</p>}
+      {noNewArticles && <p>No new articles</p>}
     </>
   );
 };
