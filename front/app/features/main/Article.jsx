@@ -24,7 +24,7 @@ export const Article = ({ article }) => {
   const [articleLiked, setArticleLiked] = useState(article.liked);
   const [articleDisliked, setArticleDisliked] = useState(article.disliked);
   const [articleRead, setArticleRead] = useState(false);
-  const articleReadRef = useRef(articleRead);
+  // const articleReadRef = useRef(articleRead);
   const { ref, inView, entry } = useInView();
   const fetcher = useFetcher();
 
@@ -70,8 +70,17 @@ export const Article = ({ article }) => {
   };
 
   useEffect(() => {
+    let markAsReadOnScrollTimeOut;
+
+    /**
+   * Marks articles currently visible on screen as read when scrolling past
+    them or when almost at the bottom of the screen. Debounced with
+    setTimeout + clearTimeout combination to prevent it from calling the API
+    multiple times as the user scrolls fast and articleRead state isn't
+    updated yet; rather, only the last call with be executed.
+   */
     const markAsReadOnScroll = () => {
-      if (inView && !articleReadRef.current) {
+      if (inView && !articleRead) {
         const bodyTop = document.body.getBoundingClientRect().top;
         const articleTop = entry.target.getBoundingClientRect().top;
         const articleOffset = articleTop - bodyTop;
@@ -81,23 +90,26 @@ export const Article = ({ article }) => {
           550 + entry.target.offsetHeight + scrollY > documentHeight;
 
         if (!articleRead && (scrollY > articleOffset || almostAtBottom)) {
+          console.log('before clearing timeout');
+          clearTimeout(markAsReadOnScrollTimeOut);
+
           const articleId = entry.target.dataset.id;
-          // console.log(articleReadRef.current);
           // console.log('marking as read:', entry.target.dataset.title);
           entry.target.classList.add('article-read');
           setArticleRead(true);
-          fetcher.submit(
-            {
-              _action: 'read_article',
-              id: articleId,
-            },
-            { method: 'post' }
-          );
+          markAsReadOnScrollTimeOut = setTimeout(() => {
+            fetcher.submit(
+              {
+                _action: 'read_article',
+                id: articleId,
+              },
+              { method: 'post' }
+            );
+            console.log('--ok');
+          }, 300);
         }
       }
     };
-
-    articleReadRef.current = articleRead;
 
     if (typeof window !== 'undefined') {
       window.addEventListener('scroll', markAsReadOnScroll);
