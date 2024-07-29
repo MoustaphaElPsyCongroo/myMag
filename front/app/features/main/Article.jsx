@@ -1,5 +1,5 @@
 import { Link, useFetcher } from '@remix-run/react';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { ClientOnly } from 'remix-utils';
 import { useInView } from 'react-intersection-observer';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -90,7 +90,6 @@ export const Article = ({ article }) => {
           550 + entry.target.offsetHeight + scrollY > documentHeight;
 
         if (!articleRead && (scrollY > articleOffset || almostAtBottom)) {
-          console.log('before clearing timeout');
           clearTimeout(markAsReadOnScrollTimeOut);
 
           const articleId = entry.target.dataset.id;
@@ -105,7 +104,6 @@ export const Article = ({ article }) => {
               },
               { method: 'post' }
             );
-            console.log('--ok');
           }, 300);
         }
       }

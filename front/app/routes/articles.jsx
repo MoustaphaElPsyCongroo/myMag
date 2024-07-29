@@ -118,14 +118,14 @@ export default function ArticlesRoute() {
   const [noNewArticles, setNoNewArticles] = useState(articlesData.total === 0);
 
   useEffect(() => {
-    if (!fetcher.data || fetcher.state === 'loading') {
+    if (!fetcher.data || fetcher.state !== 'idle') {
       return;
     }
 
     if (fetcher.data) {
       const receivedArticles = fetcher.data.results;
 
-      setNoNewArticles(receivedArticles.length === 0);
+      setNoNewArticles(fetcher.data.total === 0);
       // setArticles((existingArticles) => [...existingArticles,
       // ...newArticles]);
 
@@ -143,7 +143,7 @@ export default function ArticlesRoute() {
   }, [fetcher.data, fetcher.state]);
 
   const loadMoreArticles = useCallback(() => {
-    if (!noNewArticles && fetcher.state !== 'loading') {
+    if (!noNewArticles && fetcher.state === 'idle') {
       fetcher.load('/articles');
     }
   }, [fetcher, noNewArticles]);
@@ -155,7 +155,7 @@ export default function ArticlesRoute() {
         {articles && articlesData.total > 0 && (
           <ArticleScroller
             loadMoreArticles={loadMoreArticles}
-            isMoreArticlesLoading={fetcher.state === 'loading'}
+            isMoreArticlesLoading={fetcher.state !== 'idle'}
             noNewArticles={noNewArticles}
           >
             {articles.map((article) => (
@@ -168,6 +168,14 @@ export default function ArticlesRoute() {
   );
 }
 
+// TODO: add a 'shouldNotRevalidate' field to actionResult as specified in the
+// remix docs so I can prevent a reload on actionResult?.shouldNotRevalidate
+// instead of all actionresults
+
+/**
+ * Prevents reloading this route after an action has been sent (like
+ * liking/marking as read/etc)
+ */
 export const shouldRevalidate = ({ actionResult, defaultShouldRevalidate }) => {
   if (actionResult) {
     return false;
