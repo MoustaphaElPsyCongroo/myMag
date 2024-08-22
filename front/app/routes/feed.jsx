@@ -2,6 +2,11 @@ import { json } from '@remix-run/node';
 import { authenticator } from '~/features/auth/auth.server';
 import { searchFeed, subscribeFeed } from '~/utils/feeds.server';
 
+/**
+ * Fetches a feed by url
+ * @param {Request} request GET to /feed
+ * @returns Fetched feed data
+ */
 export const loader = async ({ request }) => {
   // const user = await authenticator.isAuthenticated(request, {
   //   failureRedirect: '/'
@@ -18,6 +23,11 @@ export const loader = async ({ request }) => {
   return json(feedData);
 };
 
+/**
+ * Handles feed POST requests, for subscribing for example
+ * @param {Request} request POST to /feed
+ * @returns
+ */
 export const action = async ({ request }) => {
   const user = await authenticator.isAuthenticated(request, {
     failureRedirect: '/',

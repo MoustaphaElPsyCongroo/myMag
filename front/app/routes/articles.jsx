@@ -19,6 +19,11 @@ export const links = () => [
   ...articleLinks(),
 ];
 
+/**
+ * Fetches initial article data
+ * @param {Request} request GET to /articles
+ * @returns Received article data
+ */
 export const loader = async ({ request }) => {
   const user = await authenticator.isAuthenticated(request, {
     failureRedirect: '/',
@@ -32,6 +37,11 @@ export const loader = async ({ request }) => {
   return json(articlesData);
 };
 
+/**
+ * Handles article actions (read, like/dislike/un)
+ * @param {Request} request POST to /articles
+ * @returns
+ */
 export const action = async ({ request }) => {
   const user = await authenticator.isAuthenticated(request, {
     failureRedirect: '/',
@@ -110,6 +120,10 @@ export const action = async ({ request }) => {
   });
 };
 
+/**
+ * Articles route, main page displaying all articles
+ * @returns
+ */
 export default function ArticlesRoute() {
   const articlesData = useLoaderData();
   const fetcher = useFetcher();

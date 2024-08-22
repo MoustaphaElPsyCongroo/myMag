@@ -1,9 +1,16 @@
 import { useState, useEffect } from 'react';
 
+/**
+ * Infinite scroll manager component for articles
+ * @param {boolean} isMoreArticlesLoading Indicates if more articles are loading
+ * @param {boolean} noNewArticles Indicates if no new articles are left
+ * @param {function} loadMoreArticles Function prop calling /articles loader
+ * @param {React.JSX.Element} children Children elements, by default articles
+ * @returns
+ */
 export const ArticleScroller = ({
   isMoreArticlesLoading,
   noNewArticles,
-  hasOnlyDuplicates,
   loadMoreArticles,
   children,
 }) => {

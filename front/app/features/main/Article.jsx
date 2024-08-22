@@ -20,6 +20,11 @@ TimeAgo.addDefaultLocale(en);
 
 export const links = () => [{ rel: 'stylesheet', href: styles }, ...tagLinks()];
 
+/**
+ * Component for a single article.
+ * @param {object} article An object representing an article
+ * @returns An article element
+ */
 export const Article = ({ article }) => {
   const [articleLiked, setArticleLiked] = useState(article.liked);
   const [articleDisliked, setArticleDisliked] = useState(article.disliked);
@@ -28,6 +33,9 @@ export const Article = ({ article }) => {
   const { ref, inView, entry } = useInView();
   const fetcher = useFetcher();
 
+  /**
+   * Marks an article as read on click.
+   */
   const markAsReadOnClick = () => {
     const articleId = article.id;
     if (!articleRead) {
@@ -44,6 +52,10 @@ export const Article = ({ article }) => {
   };
 
   // TODO: Add handling of thrown errors on form submit
+  /**
+   * Handles Click events on Like/Dislike button to add a bouncing animation.
+   * @param {Event} e - Event
+   */
   const handleClickLikeDislike = (e) => {
     const button = e.currentTarget;
     const icon = button.firstChild;
@@ -73,12 +85,12 @@ export const Article = ({ article }) => {
     let markAsReadOnScrollTimeOut;
 
     /**
-   * Marks articles currently visible on screen as read when scrolling past
-    them or when almost at the bottom of the screen. Debounced with
-    setTimeout + clearTimeout combination to prevent it from calling the API
-    multiple times as the user scrolls fast and articleRead state isn't
-    updated yet; rather, only the last call with be executed.
-   */
+     * Marks articles currently visible on screen as read when scrolling past
+     * them or when almost at the bottom of the screen. Debounced with
+     * setTimeout + clearTimeout combination to prevent it from calling the API
+     * multiple times as the user scrolls fast and articleRead state isn't
+     * updated yet; rather, only the last call with be executed.
+     */
     const markAsReadOnScroll = () => {
       if (inView && !articleRead) {
         const bodyTop = document.body.getBoundingClientRect().top;
@@ -119,7 +131,7 @@ export const Article = ({ article }) => {
   }, [articleRead, fetcher, inView, entry?.target]);
 
   return (
-    <div
+    <article
       className="article"
       ref={ref}
       data-id={article.id}
@@ -198,14 +210,26 @@ export const Article = ({ article }) => {
           </ClientOnly>
         </button>
       </fetcher.Form>
-    </div>
+    </article>
   );
 };
 
+/**
+ * Article publish date formatter
+ * @param {object} article Article object containing a publish_date
+ * @returns A ReactTimeAgo component charged of reformatting and refreshing the
+ * date along current date. (1s/1m ago etc.)
+ */
 export const Dating = ({ article }) => {
   const date = new Date(article.publish_date);
 
   return <ReactTimeAgo date={date} locale="en-US" timeStyle="twitter" />;
 };
 
+/**
+ * Fallback component to display article date as a raw string in case of no
+ * of no javascript situation.
+ * @param {Date} date A date
+ * @returns A date
+ */
 export const DatingFallback = ({ date }) => <p>{date}</p>;
