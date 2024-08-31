@@ -348,15 +348,13 @@ def parse_save_articles(entries, feed):
                         properties["description"] += description
                     except Exception:
                         logging.exception("Caught exception when extracting html")
-                        properties["description"] = ""
                 elif "image" not in content.type:
                     properties["description"] += content.value
-                elif "image" in content.type and "image" not in properties:
-                    properties["image"] = content.value
 
-        if "image" not in properties and "content" in article:
-            for content in article.content:
-                if content.type == "text/html":
+                # Trying to see if article image is in article.content
+                if "image" in content.type and "image" not in properties:
+                    properties["image"] = content.value
+                if content.type == "text/html" and "image" not in properties:
                     soup = BeautifulSoup(f"""{content.value}""", "html.parser")
                     if soup is not None:
                         first_image = soup.find("img")
