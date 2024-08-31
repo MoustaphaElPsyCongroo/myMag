@@ -357,11 +357,11 @@ def parse_save_articles(entries, feed):
         if "image" not in properties and "content" in article:
             for content in article.content:
                 if content.type == "text/html":
-                    soup = BeautifulSoup(content.value, "html.parser")
+                    soup = BeautifulSoup(f"""{content.value}""", "html.parser")
                     if soup is not None:
-                        image_url = soup.find("img")["src"]
-                        if image_url:
-                            properties["image"] = image_url
+                        first_image = soup.find("img")
+                        if first_image:
+                            properties["image"] = first_image["src"]
                             break
 
         if "description" not in properties:
