@@ -29,8 +29,10 @@ html_to_text.ignore_tables = True
 html_to_text.ignore_emphasis = True
 
 
-def extract_article_content(url):
+def extract_article_content(url, should_fetch_image=False):
     """Extract article content from url"""
+    image = None
+
     try:
         with open("headers.json", "r", encoding="utf8") as f:
             headers = json.load(f)
@@ -46,17 +48,30 @@ def extract_article_content(url):
         logging.exception("Caught exception when parsing with article parser")
         content = ""
 
+    if should_fetch_image:
+        try:
+            soup = BeautifulSoup(
+                f"""{content}""",
+                "html.parser",
+            )
+            if soup is not None:
+                first_image = soup.find("img")
+                if first_image:
+                    image = first_image["src"]
+        except Exception:
+            logging.exception("Caught exception when parsing html with BeautifulSoup")
+
     try:
         plain_content = html_to_text.handle(f"{content}")
     except Exception:
         logging.exception("Caught exception when extracting html")
         return ""
 
-    return plain_content
+    return (plain_content, image)
 
 
 def extract_article_language(article):
-    content = f"{article.title}.\n {extract_article_content(article.link)}"[:1000]
+    content = f"{article.title}.\n {extract_article_content(article.link)[0]}"[:1000]
     if len(content) <= 200:
         content = article.title
 
@@ -355,18 +370,30 @@ def parse_save_articles(entries, feed):
                 if "image" in content.type and "image" not in properties:
                     properties["image"] = content.value
                 if content.type == "text/html" and "image" not in properties:
-                    soup = BeautifulSoup(f"""{content.value}""", "html.parser")
-                    if soup is not None:
-                        first_image = soup.find("img")
-                        if first_image:
-                            properties["image"] = first_image["src"]
-                            break
+                    try:
+                        soup = BeautifulSoup(f"""{content.value}""", "html.parser")
+                        if soup is not None:
+                            first_image = soup.find("img")
+                            if first_image:
+                                properties["image"] = first_image["src"]
+                                break
+                    except Exception:
+                        logging.exception(
+                            "Caught exception when parsing html with BeautifulSoup"
+                        )
 
         if "description" not in properties:
             if "summary" in article:
                 properties["description"] = article.summary
 
-        content = f"{article.title}.\n {extract_article_content(article.link)}"
+        # if no image has been found by previous methods, fetch it
+        # manually when extracting article content
+        raw_content, image = extract_article_content(
+            article.link, "image" in properties
+        )
+        if image:
+            properties["image"] = image
+        content = f"{article.title}.\n {raw_content}"
         if len(content) <= 800:
             content = f"{article.title}.\n {properties['description']}"
         # print(content)
