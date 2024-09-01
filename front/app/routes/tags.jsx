@@ -10,8 +10,8 @@ import {
 export const loader = () => redirect('/');
 
 /**
- * Handles /tags POST requests
- * @param {Request} request POST to /tags
+ * Handles /tags POST or DELETE requests
+ * @param {Request} request POST or DELETE to /tags
  * @returns
  */
 export const action = async ({ request }) => {
@@ -23,54 +23,30 @@ export const action = async ({ request }) => {
   const { _action, ...values } = Object.fromEntries(formData);
   const articleId = values.id;
 
-  console.log(_action);
+  // console.log(_action);
 
   switch (_action) {
     case 'like_tag': {
       const { likeData, likeStatus } = await likeTag(userId, articleId);
-      if (likeStatus !== 200) {
-        throw json(likeData.error, {
-          status: likeStatus,
-          statusText: likeData.error,
-        });
-      }
-      return json(likeData);
+      return json({ status: likeStatus, results: likeData });
     }
     case 'unlike_tag': {
       const { unlikeData, unlikeStatus } = await unlikeTag(userId, articleId);
-      if (unlikeStatus !== 200) {
-        throw json(unlikeData.error, {
-          status: unlikeStatus,
-          statusText: unlikeData.error,
-        });
-      }
-      return json(unlikeData);
+      return json({ status: unlikeStatus, results: unlikeData });
     }
     case 'dislike_tag': {
       const { dislikeData, dislikeStatus } = await dislikeTag(
         userId,
         articleId
       );
-      if (dislikeStatus !== 200) {
-        throw json(dislikeData.error, {
-          status: dislikeStatus,
-          statusText: dislikeData.error,
-        });
-      }
-      return json(dislikeData);
+      return json({ status: dislikeStatus, results: dislikeData });
     }
     case 'undislike_tag': {
       const { undislikeData, undislikeStatus } = await undislikeTag(
         userId,
         articleId
       );
-      if (undislikeStatus !== 200) {
-        throw json(undislikeData.error, {
-          status: undislikeStatus,
-          statusText: undislikeData.error,
-        });
-      }
-      return json(undislikeData);
+      return json({ status: undislikeStatus, results: undislikeData });
     }
   }
   throw json('Error: unknown Form', {

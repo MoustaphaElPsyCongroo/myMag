@@ -33,6 +33,8 @@ export const Article = ({ article }) => {
   const { ref, inView, entry } = useInView();
   const fetcher = useFetcher();
 
+  // TODO: Add handling of thrown errors on form submit (after the submit, to
+  // keep instant scroll feedback)
   /**
    * Marks an article as read on click.
    */
@@ -51,7 +53,8 @@ export const Article = ({ article }) => {
     }
   };
 
-  // TODO: Add handling of thrown errors on form submit
+  // TODO: Add handling of thrown errors on form submit (after the submit, to
+  // keep instant click feedback)
   /**
    * Handles Click events on Like/Dislike button to add a bouncing animation.
    * @param {Event} e - Event
@@ -84,6 +87,7 @@ export const Article = ({ article }) => {
   useEffect(() => {
     let markAsReadOnScrollTimeOut;
 
+    // TODO: Add handling of thrown errors on form submit
     /**
      * Marks articles currently visible on screen as read when scrolling past
      * them or when almost at the bottom of the screen. Debounced with
@@ -228,7 +232,7 @@ export const Dating = ({ article }) => {
 
 /**
  * Fallback component to display article date as a raw string in case of no
- * of no javascript situation.
+ * javascript situation.
  * @param {Date} date A date
  * @returns A date
  */

@@ -1,5 +1,5 @@
 import { json } from '@remix-run/node';
-import { useLoaderData, useFetcher } from '@remix-run/react';
+import { useLoaderData, useFetcher, useRouteError } from '@remix-run/react';
 import { useEffect, useState, useCallback } from 'react';
 import { authenticator } from '~/features/auth/auth.server';
 import { Article, links as articleLinks } from '~/features/main/Article';
@@ -33,7 +33,23 @@ export const loader = async ({ request }) => {
   const thirtyFirstUnreadArticles = await fetch(
     `${process.env.BACKEND_URL}/users/${userId}/articles/unread`
   );
+  const articlesStatus = thirtyFirstUnreadArticles.status;
   const articlesData = await thirtyFirstUnreadArticles.json();
+
+  if (articlesStatus >= 400) {
+    const errorMessage = articlesData.error.split(': ')[1];
+    throw json(errorMessage, {
+      status: articlesStatus,
+      statusText: errorMessage,
+    });
+  }
+
+  // Response here has different structure from the other loaders/actions (no
+  // {status: x, results: y}) because API doesn't only return a single array or
+  // object but an object + array in the form {total: nb, results: r}. Would be
+  // redundant to then access articlesData.results.[index].results so I only
+  // return the data and instead access status + render errors in an
+  // ErrorBoundary
   return json(articlesData);
 };
 
@@ -51,67 +67,35 @@ export const action = async ({ request }) => {
   const { _action, ...values } = Object.fromEntries(formData);
   const articleId = values.id;
 
-  // console.log(_action);
-
   switch (_action) {
     case 'like_article': {
       const { likeData, likeStatus } = await likeArticle(userId, articleId);
-      if (likeStatus !== 200) {
-        throw json(likeData.error, {
-          status: likeStatus,
-          statusText: likeData.error,
-        });
-      }
-      return json(likeData);
+      return json({ status: likeStatus, results: likeData });
     }
     case 'unlike_article': {
       const { unlikeData, unlikeStatus } = await unlikeArticle(
         userId,
         articleId
       );
-      if (unlikeStatus !== 200) {
-        throw json(unlikeData.error, {
-          status: unlikeStatus,
-          statusText: unlikeData.error,
-        });
-      }
-      return json(unlikeData);
+      return json({ status: unlikeStatus, results: unlikeData });
     }
     case 'dislike_article': {
       const { dislikeData, dislikeStatus } = await dislikeArticle(
         userId,
         articleId
       );
-      if (dislikeStatus !== 200) {
-        throw json(dislikeData.error, {
-          status: dislikeStatus,
-          statusText: dislikeData.error,
-        });
-      }
-      return json(dislikeData);
+      return json({ status: dislikeStatus, results: dislikeData });
     }
     case 'undislike_article': {
       const { undislikeData, undislikeStatus } = await undislikeArticle(
         userId,
         articleId
       );
-      if (undislikeStatus !== 200) {
-        throw json(undislikeData.error, {
-          status: undislikeStatus,
-          statusText: undislikeData.error,
-        });
-      }
-      return json(undislikeData);
+      return json({ status: undislikeStatus, results: undislikeData });
     }
     case 'read_article': {
       const { readData, readStatus } = await readArticle(userId, articleId);
-      if (readStatus !== 200 && readStatus !== 202) {
-        throw json(readData.error, {
-          status: readStatus,
-          statusText: readData.error,
-        });
-      }
-      return json(readData);
+      return json({ status: readStatus, results: readData });
     }
   }
   throw json('Error: unknown Form', {
@@ -197,6 +181,13 @@ export const shouldRevalidate = ({ actionResult, defaultShouldRevalidate }) => {
   return defaultShouldRevalidate;
 };
 
-// TODO: Handle and render action errors here
-// export const CatchBoundary = () => {
-// }
+// TODO: Handle and render loader errors here
+export const ErrorBoundary = () => {
+  const error = useRouteError();
+
+  return (
+    <div>
+      <p>Error! {error.statusText}</p>
+    </div>
+  );
+};

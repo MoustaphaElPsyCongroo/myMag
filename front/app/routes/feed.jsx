@@ -17,10 +17,7 @@ export const loader = async ({ request }) => {
   const feedUrl = search.get('query_feed');
 
   const { feedData, feedStatus } = await searchFeed(feedUrl);
-  if (feedStatus !== 200) {
-    return json({ error: feedData.error, status: feedStatus });
-  }
-  return json(feedData);
+  return json({ status: feedStatus, results: feedData });
 };
 
 /**
@@ -40,10 +37,7 @@ export const action = async ({ request }) => {
   switch (_action) {
     case 'subscribe_feed': {
       const { feedData, feedStatus } = await subscribeFeed(userId, feedId);
-      if (feedStatus !== 200) {
-        return json({ error: feedData.error, status: feedStatus });
-      }
-      return json(feedData);
+      return json({ status: feedStatus, results: feedData });
     }
   }
   throw json('Error: unknown Form', {

@@ -9,7 +9,7 @@ export const loader = () => redirect('/');
 
 /**
  * Authenticates user
- * @param {Request} param0
+ * @param {Request} request
  * @returns
  */
 export const action = ({ request, params }) => {

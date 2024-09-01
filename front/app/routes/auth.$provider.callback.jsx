@@ -2,7 +2,7 @@ import { authenticator } from '~/features/auth/auth.server';
 
 /**
  * Authenticates user
- * @param {Requests} param0
+ * @param {Requests} request
  * @returns
  */
 export const loader = async ({ request, params }) => {
