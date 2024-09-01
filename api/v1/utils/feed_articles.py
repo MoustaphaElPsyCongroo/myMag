@@ -101,15 +101,7 @@ def extract_tags(full_content, trimmed_content, lang):
     """
     tags = []
     invalid_tags = [
-        "",
         "Other",
-        "span",
-        "span class",
-        "p",
-        "div",
-        "div class",
-        "img alt",
-        "href",
     ]
     all_tags_raw = []
 
@@ -153,42 +145,49 @@ def extract_tags(full_content, trimmed_content, lang):
     # already in database. If this ratio is > 0 with this score cutoff, we
     # consider the two words the same keyword. Ex: révolutionner/révolution.
     known_tags_raw = storage.query(Tag.name).filter(Tag.type == "keyword").all()
-    # Keyword in known_tags_raw is a one char tuple due to selecting a single
-    # SQL column, so keyword[0]
+    # Keyword in known_tags_raw is a one char tuple even when selecting a single
+    # SQL column, so we need keyword[0]
     known_tags = [keyword[0] for keyword in known_tags_raw]
     for kw in keywords:
-        if kw in known_tags and kw not in tag_keywords:
+        tags_to_add = [k[0] for k in tag_keywords]
+        if kw[0] in known_tags and kw[0] not in tags_to_add:
             tag_keywords.append(kw)
             known_tags.append(kw)
             continue
         for keyword in known_tags:
-            if (
-                ratio(keyword, kw, score_cutoff=0.85) > 0
-                and keyword not in tag_keywords
-            ):
+            if ratio(keyword, kw, score_cutoff=0.85) > 0 and keyword not in tags_to_add:
                 tag_keywords.append(keyword)
                 known_tags.append(keyword)
-                # print('keyword from yake:', kw)
-                # print('accepted keyword from db:', keyword)
-            else:
-                words = kw.split(" ")
-                for kword in words:
-                    if (
-                        ratio(keyword, kword, score_cutoff=0.85) > 0
-                        and keyword not in tag_keywords
-                    ):
-                        tag_keywords.append(keyword)
-                        known_tags.append(keyword)
+                logging.debug("keyword from yake:", kw)
+                logging.debug("accepted keyword from db:", keyword)
+            # Disabled this part, which evaluated keywords word per word to match
+            # them to existing tags in db in case of not found multiword keywords.
+            # Yake is already capable of finding relevant single word keywords even
+            # with high max_ngram_size. Most of the time if a single-word keyword
+            # hadn't been surfaced by Yake, it wasn't very relevant anyway.
+            # else:
+            #     words = kw.split(" ")
+            #     for kword in words:
+            #         if (
+            #             ratio(keyword, kword, score_cutoff=0.85) > 0
+            #             and keyword not in tag_keywords
+            #         ):
+            #             tag_keywords.append(keyword)
+            #             known_tags.append(keyword)
+
+    # The part below has been disabled because raw, unedited yake keywords are too
+    # irrelevant by themselves most of the time. Instead we'll build our own list
+    # of keywords (taglist.txt) and Yake will only help surface them by
+    # Levenshtein ratios.
 
     # If no existing tag matched, add the two most relevant ones that are
     # sufficiently different from each other
-    if len(tag_keywords) == 0:
-        keywords = extract_yake_keywords(full_content, lang, 2, 0.3, 2)
-        tag_keywords = keywords
-    tag_keywords = [(tag, None) for tag in tag_keywords]
+    # if len(tag_keywords) == 0:
+    #     keywords = extract_yake_keywords(full_content, lang, 2, 0.3, 2)
+    #     tag_keywords = keywords
 
-    for false_couples in tag_keywords:
-        tags.append(false_couples)
+    for tag_keyword in tag_keywords:
+        tags.append(tag_keyword)
 
     print("all keywords:", keywords)
     # print('all tags final: ', tags)
@@ -209,7 +208,9 @@ def extract_yake_keywords(content, lang, max_ngram_size, dedupLim, top):
     )
 
     keywords = custom_kw_extractor.extract_keywords(content)
-    keywords = [kw[0] for kw in keywords]
+    # Yake keyword relevance scorings are inverted compared to Google's
+    # (smaller score = more relevant) so I invert them to match Google's.
+    keywords = [(kw[0], max(0, 1 - kw[1]), "keyword") for kw in keywords]
     return keywords
 
 
@@ -393,9 +394,9 @@ def parse_save_articles(entries, feed):
         )
         if image:
             properties["image"] = image
-        content = f"{article.title}.\n {raw_content}"
+        content = f"{article.title}. {raw_content}"
         if len(content) <= 800:
-            content = f"{article.title}.\n {properties['description']}"
+            content = f"{article.title}. {properties['description']}"
         # print(content)
 
         properties["description"] = properties["description"][:2000]
@@ -414,9 +415,8 @@ def parse_save_articles(entries, feed):
             tag_name = tag_confidence_couple[0]
             tag_type = "tag"
             tag_confidence = tag_confidence_couple[1]
-            if tag_confidence_couple[1] is None:
+            if len(tag_confidence_couple) > 2:
                 tag_type = "keyword"
-                tag_confidence = 0.9
 
             assoc = TagArticleAssociation(confidence=tag_confidence)
             assoc.tag = None
