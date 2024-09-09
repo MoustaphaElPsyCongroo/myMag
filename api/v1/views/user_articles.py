@@ -213,9 +213,9 @@ def mark_article_as_unread(user_id, article_id):
     return {}, 200
 
 
-@app_views.route("/users/<user_id>/articles/unread", methods=["DELETE"])
+@app_views.route("/users/<user_id>/articles/read", methods=["DELETE"])
 def mark_all_articles_as_unread(user_id):
-    """Mark all read articles of an user as unread"""
+    """Mark all read articles of a user as unread"""
     user = storage.get(User, user_id)
     if user is None:
         abort(404, description="The specified user doesn't exist")
@@ -229,6 +229,35 @@ def mark_all_articles_as_unread(user_id):
 
     for article in read_articles:
         user.read_articles.remove(article)
+    storage.save()
+
+    return {}, 200
+
+
+@app_views.route("/users/<user_id>/articles/unread", methods=["DELETE"])
+def mark_all_articles_as_read(user_id):
+    """Mark all articles of a user as read"""
+    user = storage.get(User, user_id)
+    if user is None:
+        abort(404, description="The specified user doesn't exist")
+
+    read_ids = (
+        storage.query(Article.id).join(User.read_articles).filter(User.id == user_id)
+    )
+
+    all_user_articles = (
+        storage.query(Article)
+        .filter(User.id == user_id)
+        .filter(Article.id.not_in(read_ids))
+        .all()
+    )
+
+    if all_user_articles is None:
+        abort(404, description="No unread articles")
+
+    for article in all_user_articles:
+        user.read_articles.append(article)
+    user.last_read_date = datetime.now()
     storage.save()
 
     return {}, 200
