@@ -70,32 +70,52 @@ export const action = async ({ request }) => {
   switch (_action) {
     case 'like_article': {
       const { likeData, likeStatus } = await likeArticle(userId, articleId);
-      return json({ status: likeStatus, results: likeData });
+      return json({
+        status: likeStatus,
+        results: likeData,
+        shouldNotRevalidate: true,
+      });
     }
     case 'unlike_article': {
       const { unlikeData, unlikeStatus } = await unlikeArticle(
         userId,
         articleId
       );
-      return json({ status: unlikeStatus, results: unlikeData });
+      return json({
+        status: unlikeStatus,
+        results: unlikeData,
+        shouldNotRevalidate: true,
+      });
     }
     case 'dislike_article': {
       const { dislikeData, dislikeStatus } = await dislikeArticle(
         userId,
         articleId
       );
-      return json({ status: dislikeStatus, results: dislikeData });
+      return json({
+        status: dislikeStatus,
+        results: dislikeData,
+        shouldNotRevalidate: true,
+      });
     }
     case 'undislike_article': {
       const { undislikeData, undislikeStatus } = await undislikeArticle(
         userId,
         articleId
       );
-      return json({ status: undislikeStatus, results: undislikeData });
+      return json({
+        status: undislikeStatus,
+        results: undislikeData,
+        shouldNotRevalidate: true,
+      });
     }
     case 'read_article': {
       const { readData, readStatus } = await readArticle(userId, articleId);
-      return json({ status: readStatus, results: readData });
+      return json({
+        status: readStatus,
+        results: readData,
+        shouldNotRevalidate: true,
+      });
     }
   }
   throw json('Error: unknown Form', {
@@ -148,7 +168,6 @@ export default function ArticlesRoute() {
 
   return (
     <>
-      <h2>{articlesData.total} new articles </h2>
       <div className="articles-container">
         {articles && articlesData.total > 0 && (
           <ArticleScroller
@@ -166,20 +185,21 @@ export default function ArticlesRoute() {
   );
 }
 
-// TODO: add a 'shouldNotRevalidate' field to actionResult as specified in the
-// remix docs so I can prevent a reload on actionResult?.shouldNotRevalidate
-// instead of all actionresults
+// In case of performance or data usage impact, use action responses'
+// shouldNotRevalidate field to prevent refetching the API each time an action
+// is called. But in this case it's useful to keep the counter of unread
+// articles updated without using other methods.
 
 /**
  * Prevents reloading this route after an action has been sent (like
  * liking/marking as read/etc)
  */
-export const shouldRevalidate = ({ actionResult, defaultShouldRevalidate }) => {
-  if (actionResult) {
-    return false;
-  }
-  return defaultShouldRevalidate;
-};
+// export const shouldRevalidate = ({ actionResult, defaultShouldRevalidate }) => {
+//   if (actionResult?.shouldNotRevalidate) {
+//     return false;
+//   }
+//   return defaultShouldRevalidate;
+// };
 
 // TODO: Handle and render loader errors here
 export const ErrorBoundary = () => {
