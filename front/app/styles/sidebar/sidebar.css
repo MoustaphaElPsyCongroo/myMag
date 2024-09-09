@@ -1,3 +1,9 @@
+.sidebar-container {
+  position: sticky;
+  top: 10px;
+  height: 100vh;
+}
+
 .dropbtn {
   background-color: #3498db;
   color: white;
@@ -38,4 +44,13 @@
 /* Change color of dropdown links on hover */
 .dropdown-content a:hover {
   background-color: #ddd;
+}
+
+.sidebar-subscribed_feeds {
+  list-style: none;
+  padding: 0;
+}
+
+.subscribed_feeds-item {
+  line-height: 2;
 }

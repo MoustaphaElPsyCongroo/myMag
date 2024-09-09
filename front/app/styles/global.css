@@ -9,3 +9,8 @@
 .main-container main {
   flex: 1 2 auto;
 }
+
+.errorText {
+  color: red;
+  font-weight: bold;
+}

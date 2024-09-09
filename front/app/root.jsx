@@ -11,9 +11,11 @@ import { authenticator } from '~/features/auth/auth.server';
 
 import { Header, links as headerLinks } from '~/features/header/Header';
 import { Sidebar, links as sidebarLinks } from './features/sidebar/Sidebar';
+import { getUserFeeds } from './utils/feeds.server';
 
 import normalizeCss from '~/styles/normalize.css';
 import globalStyles from '~/styles/global.css';
+import { json } from '@remix-run/node';
 
 export const links = () => [
   { rel: 'stylesheet', href: normalizeCss },
@@ -24,13 +26,23 @@ export const links = () => [
 
 /**
  * Loads the logged in user for distribution to permanent components (Header,
- * Sidebar).
+ * Sidebar) and their subscribed feeds (for Sidebar).
  * @param {Request} request GET to the site
  * @returns Logged user data or empty object
  */
 export const loader = async ({ request }) => {
   const user = await authenticator.isAuthenticated(request);
-  return user || {};
+
+  if (!user) {
+    return json({ user: null, feeds: null });
+  }
+
+  const userId = user.id;
+  const { feedsData, feedsStatus } = await getUserFeeds(userId);
+  return json({
+    user: user,
+    feeds: { status: feedsStatus, results: feedsData },
+  });
 };
 
 /**
@@ -39,7 +51,9 @@ export const loader = async ({ request }) => {
  * @returns App structure
  */
 export default function App() {
-  const user = useLoaderData();
+  const globalData = useLoaderData();
+  const user = globalData.user;
+  const subscribedFeeds = globalData.feeds;
 
   return (
     <html lang="en">
@@ -52,7 +66,7 @@ export default function App() {
       <body>
         <Header user={user} />
         <div className="main-container">
-          <Sidebar user={user} />
+          {user && <Sidebar feeds={subscribedFeeds} />}
           <main>
             <Outlet />
           </main>

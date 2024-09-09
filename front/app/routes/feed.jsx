@@ -1,6 +1,6 @@
-import { json } from '@remix-run/node';
+import { json, redirect } from '@remix-run/node';
 import { authenticator } from '~/features/auth/auth.server';
-import { searchFeed, subscribeFeed } from '~/utils/feeds.server';
+import { getOrImportFeedFromURL, subscribeFeed } from '~/utils/feeds.server';
 
 /**
  * Fetches a feed by url
@@ -16,7 +16,11 @@ export const loader = async ({ request }) => {
   const search = new URLSearchParams(url.search);
   const feedUrl = search.get('query_feed');
 
-  const { feedData, feedStatus } = await searchFeed(feedUrl);
+  if (!feedUrl) {
+    return redirect('/');
+  }
+
+  const { feedData, feedStatus } = await getOrImportFeedFromURL(feedUrl);
   return json({ status: feedStatus, results: feedData });
 };
 
