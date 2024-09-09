@@ -1,4 +1,6 @@
 #!/usr/bin/python3
+"""Utility functions for user-article relations (e.g. score calculations)"""
+
 import logging
 from datetime import datetime, timedelta
 
