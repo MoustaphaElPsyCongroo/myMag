@@ -83,6 +83,7 @@ class DBStorage:
         self.__session = Session
 
     def rollback(self):
+        """Cancels and cleans a non committed transaction"""
         self.__session.rollback()
 
     def close(self):
