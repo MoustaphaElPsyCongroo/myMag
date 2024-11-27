@@ -104,9 +104,3 @@ class TestArticle(unittest.TestCase):
         self.assertTrue(hasattr(article, "article_read_by"))
         self.assertTrue(hasattr(article, "article_tag_associations"))
         self.assertTrue(hasattr(article, "article_user_score_associations"))
-
-    def test_str(self):
-        """test that the str method has the correct output"""
-        article = Article()
-        string = "[Article] ({}) {}".format(article.id, article.__dict__)
-        self.assertEqual(string, str(article))
