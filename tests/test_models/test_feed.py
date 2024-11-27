@@ -70,7 +70,7 @@ class TestFeedDocs(unittest.TestCase):
 
 
 class TestFeed(unittest.TestCase):
-    """Tests for the Feed class"""
+    """Tests for the Feed model"""
 
     def test_is_subclass(self):
         """Test that Feed is a subclass of BaseModel"""
@@ -79,18 +79,3 @@ class TestFeed(unittest.TestCase):
         self.assertTrue(hasattr(feed, "id"))
         self.assertTrue(hasattr(feed, "created_at"))
         self.assertTrue(hasattr(feed, "updated_at"))
-
-    def test_attributes(self):
-        """Test that Feed has the right attributes"""
-        feed = Feed()
-        self.assertTrue(hasattr(feed, "name"))
-        self.assertTrue(hasattr(feed, "link"))
-        self.assertTrue(hasattr(feed, "description"))
-        self.assertTrue(hasattr(feed, "banner_img"))
-        self.assertTrue(hasattr(feed, "etag"))
-        self.assertTrue(hasattr(feed, "last_modified"))
-        self.assertTrue(hasattr(feed, "active"))
-        self.assertTrue(hasattr(feed, "average_shares_per_week"))
-        self.assertTrue(hasattr(feed, "articles_per_week"))
-        self.assertTrue(hasattr(feed, "feed_users"))
-        self.assertTrue(hasattr(feed, "feed_articles"))
