@@ -7,10 +7,7 @@ from unittest import mock
 
 import pycodestyle
 
-import models
-
-BaseModel = models.base_model.BaseModel
-module_doc = models.base_model.__doc__
+from models.base_model import BaseModel
 
 
 class TestBaseModelDocs(unittest.TestCase):
@@ -33,8 +30,12 @@ class TestBaseModelDocs(unittest.TestCase):
 
     def test_module_docstring(self):
         """Test for the existence of module docstring"""
-        self.assertIsNot(module_doc, None, "base_model.py needs a docstring")
-        self.assertTrue(len(module_doc) > 1, "base_model.py needs a docstring")
+        self.assertIsNot(
+            BaseModel.__doc__, None, "base_model.py needs a docstring"
+        )
+        self.assertTrue(
+            len(BaseModel.__doc__) > 1, "base_model.py needs a docstring"
+        )
 
     def test_class_docstring(self):
         """Test for the BaseModel class docstring"""
@@ -61,28 +62,33 @@ class TestBaseModelDocs(unittest.TestCase):
 
 
 class TestBaseModel(unittest.TestCase):
-    """Test the BaseModel class"""
+    """Tests for the BaseModel class"""
 
     def test_instantiation(self):
-        """Test that object is correctly created"""
-        inst = BaseModel()
-        self.assertIs(type(inst), BaseModel)
-        inst.name = "Test"
-        inst.number = 89
-        attrs_types = {"id": str, "name": str, "number": int}
-        for attr, typ in attrs_types.items():
-            with self.subTest(attr=attr, typ=typ):
-                self.assertIn(attr, inst.__dict__)
-                self.assertIs(type(inst.__dict__[attr]), typ)
-        self.assertEqual(inst.name, "Test")
-        self.assertEqual(inst.number, 89)
+        """Test that instance is correctly created"""
+        instance = BaseModel()
+        self.assertIs(type(instance), BaseModel)
+        instance.name = "Test"
+        instance.number = 89
+        attributes = {"id": str, "name": str, "number": int}
+        for attribute_name, attribute_type in attributes.items():
+            with self.subTest(
+                attribute_name=attribute_name, attribute_type=attribute_type
+            ):
+                self.assertIn(attribute_name, instance.__dict__)
+                self.assertIs(
+                    type(instance.__dict__[attribute_name]),
+                    attribute_type,
+                )
+        self.assertEqual(instance.name, "Test")
+        self.assertEqual(instance.number, 89)
 
     def test_uuid(self):
-        """Test that id is a valid uuid"""
-        inst1 = BaseModel()
-        inst2 = BaseModel()
-        for inst in [inst1, inst2]:
-            uuid = inst.id
+        """Test that id attribute is a valid uuid4 id"""
+        instance1 = BaseModel()
+        instance2 = BaseModel()
+        for instance in [instance1, instance2]:
+            uuid = instance.id
             with self.subTest(uuid=uuid):
                 self.assertIs(type(uuid), str)
                 self.assertRegex(
@@ -91,36 +97,40 @@ class TestBaseModel(unittest.TestCase):
                     "-[0-9a-f]{4}-[0-9a-f]{4}"
                     "-[0-9a-f]{12}$",
                 )
-        self.assertNotEqual(inst1.id, inst2.id)
+        self.assertNotEqual(instance1.id, instance2.id)
 
     def test_to_dict(self):
-        """Test conversion of object attributes to dictionary for json"""
-        my_model = BaseModel()
-        my_model.name = "Test"
-        my_model.my_number = 89
-        d = my_model.to_dict()
-        expected_attrs = ["id", "name", "my_number", "__class__"]
-        self.assertCountEqual(d.keys(), expected_attrs)
-        self.assertEqual(d["__class__"], "BaseModel")
-        self.assertEqual(d["name"], "Test")
-        self.assertEqual(d["my_number"], 89)
-
-    def test_to_dict_values(self):
-        """test that values in dict returned from to_dict are correct"""
-        bm = BaseModel()
-        new_d = bm.to_dict()
-        self.assertEqual(new_d["__class__"], "BaseModel")
+        """Test that to_dict method correctly converts instance's attributes to
+        a jsonifiable dictionary"""
+        base_model = BaseModel()
+        base_model.name = "Test"
+        base_model.a_number = 89
+        base_model.a_list_normally_excluded = [89, 90, 91, "abcd"]
+        jsonifiable_dict = base_model.to_dict()
+        expected_keys = ["id", "name", "a_number", "__class__"]
+        self.assertNotIn("a_list_normally_excluded", jsonifiable_dict)
+        self.assertCountEqual(jsonifiable_dict.keys(), expected_keys)
+        self.assertEqual(jsonifiable_dict["__class__"], "BaseModel")
+        self.assertEqual(jsonifiable_dict["name"], "Test")
+        self.assertEqual(jsonifiable_dict["a_number"], 89)
 
     def test_str(self):
-        """test that the str method has the correct output"""
-        inst = BaseModel()
-        string = "[BaseModel] ({}) {}".format(inst.id, inst.__dict__)
-        self.assertEqual(string, str(inst))
+        """Test that the str method has the correct output"""
+        base_model = BaseModel()
+        string = f"[BaseModel] ({base_model.id}) {base_model.__dict__}"
+        self.assertEqual(string, str(base_model))
 
     @mock.patch("models.storage")
     def test_save(self, mock_storage):
-        """Test that save method calls `storage.save`"""
-        inst = BaseModel()
-        inst.save()
+        """Test that save method calls `storage.new` and `storage.save`"""
+        base_model = BaseModel()
+        base_model.save()
         self.assertTrue(mock_storage.new.called)
         self.assertTrue(mock_storage.save.called)
+
+    @mock.patch("models.storage")
+    def test_delete(self, mock_storage):
+        """Test that delete method calls `storage.delete`"""
+        base_model = BaseModel()
+        base_model.delete()
+        self.assertTrue(mock_storage.delete.called)
