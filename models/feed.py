@@ -3,19 +3,21 @@
 Holds the representation of a Feed
 """
 
-from models.base_model import BaseModel, Base
-from models.user import user_feed
-from sqlalchemy import Column, String, Integer, DateTime, Boolean
+from sqlalchemy import Boolean, Column, Integer, String
 from sqlalchemy.orm import relationship
+
+from models.base_model import Base, BaseModel
+from models.user import user_feed
 
 
 class Feed(BaseModel, Base):
     """Representation of a Feed"""
-    __tablename__ = 'feeds'
+
+    __tablename__ = "feeds"
     name = Column(String(256), nullable=False)
     link = Column(String(2083), nullable=False)
     description = Column(String(1000), nullable=True)
-    language = Column(String(15), default='en', nullable=False)
+    language = Column(String(15), default="en", nullable=False)
     banner_img = Column(String(2083), nullable=True)
     icon = Column(String(2083), nullable=True)
     etag = Column(String(1024), nullable=True)
@@ -24,10 +26,11 @@ class Feed(BaseModel, Base):
     average_shares_per_week = Column(Integer, default=0, nullable=False)
     articles_per_week = Column(Integer, default=0, nullable=False)
     feed_users = relationship(
-        'User', secondary=user_feed, back_populates='user_feeds'
+        "User", secondary=user_feed, back_populates="user_feeds"
     )
     feed_articles = relationship(
-        'Article', back_populates="article_feed", cascade='all, delete')
+        "Article", back_populates="article_feed", cascade="all, delete"
+    )
 
     def __init__(self, *args, **kwargs):
         """Initializes the Feed model"""
