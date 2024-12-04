@@ -12,7 +12,7 @@ import feedparser
 import html2text
 import yake
 from bs4 import BeautifulSoup
-from google.cloud import language_v1
+from google.cloud import language_v1 as lang_v1
 from Levenshtein import ratio
 
 from api.v1.utils.exceptions import FeedInactiveError, FeedNotFoundError
@@ -42,7 +42,10 @@ def extract_article_content(url, should_fetch_image=False):
 
     try:
         title, content = article_parser.parse(
-            url=url, output="html", timeout=5, headers=get_random_header(headers)
+            url=url,
+            output="html",
+            timeout=5,
+            headers=get_random_header(headers),
         )
     except Exception:
         logging.exception("Caught exception when parsing with article parser")
@@ -59,7 +62,9 @@ def extract_article_content(url, should_fetch_image=False):
                 if first_image:
                     image = first_image["src"]
         except Exception:
-            logging.exception("Caught exception when parsing html with BeautifulSoup")
+            logging.exception(
+                "Caught exception when parsing html with BeautifulSoup"
+            )
 
     try:
         plain_content = html_to_text.handle(f"{content}")
@@ -71,16 +76,19 @@ def extract_article_content(url, should_fetch_image=False):
 
 
 def extract_article_language(article):
-    content = f"{article.title}.\n {extract_article_content(article.link)[0]}"[:1000]
+    """Extract article language from content"""
+    content = f"{article.title}.\n {extract_article_content(article.link)[0]}"[
+        :1000
+    ]
     if len(content) <= 200:
         content = article.title
 
-    client = language_v1.LanguageServiceClient()
-    type_ = language_v1.Document.Type.PLAIN_TEXT
+    client = lang_v1.LanguageServiceClient()
+    type_ = lang_v1.Document.Type.PLAIN_TEXT
 
     document = {"content": content, "type_": type_}
 
-    encoding_type = language_v1.EncodingType.UTF8
+    encoding_type = lang_v1.EncodingType.UTF8
 
     try:
         response = client.analyze_entities(
@@ -105,25 +113,20 @@ def extract_tags(full_content, trimmed_content, lang):
     ]
     all_tags_raw = []
 
-    client = language_v1.LanguageServiceClient()
-    type_ = language_v1.Document.Type.PLAIN_TEXT
+    client = lang_v1.LanguageServiceClient()
+    type_ = lang_v1.Document.Type.PLAIN_TEXT
     document = {"content": trimmed_content, "type_": type_}
 
-    content_categories_version = (
-        language_v1.ClassificationModelOptions.V2Model.ContentCategoriesVersion.V2
-    )
+    c = lang_v1.ClassificationModelOptions.V2Model.ContentCategoriesVersion.V2
 
     try:
-        response = client.classify_text(
-            request={
-                "document": document,
-                "classification_model_options": {
-                    "v2_model": {
-                        "content_categories_version": content_categories_version
-                    }
-                },
-            }
-        )
+        request = {
+            "document": document,
+            "classification_model_options": {
+                "v2_model": {"content_categories_version": c}
+            },
+        }
+        response = client.classify_text(request=request)
     except Exception:
         logging.exception("Error extracting tags with Google NLP")
         return []
@@ -144,9 +147,11 @@ def extract_tags(full_content, trimmed_content, lang):
     # Check the Levenshtein ratio of Yake's keywords against all keywords
     # already in database. If this ratio is > 0 with this score cutoff, we
     # consider the two words the same keyword. Ex: révolutionner/révolution.
-    known_tags_raw = storage.query(Tag.name).filter(Tag.type == "keyword").all()
-    # Keyword in known_tags_raw is a one char tuple even when selecting a single
-    # SQL column, so we need keyword[0]
+    known_tags_raw = (
+        storage.query(Tag.name).filter(Tag.type == "keyword").all()
+    )
+    # Keyword in known_tags_raw is a one char tuple even when selecting a
+    # single SQL column, so we need keyword[0]
     known_tags = [keyword[0] for keyword in known_tags_raw]
     for kw in keywords:
         tags_to_add = [k[0] for k in tag_keywords]
@@ -155,16 +160,20 @@ def extract_tags(full_content, trimmed_content, lang):
             known_tags.append(kw)
             continue
         for keyword in known_tags:
-            if ratio(keyword, kw, score_cutoff=0.85) > 0 and keyword not in tags_to_add:
+            if (
+                ratio(keyword, kw, score_cutoff=0.85) > 0
+                and keyword not in tags_to_add
+            ):
                 tag_keywords.append(keyword)
                 known_tags.append(keyword)
                 logging.debug("keyword from yake:", kw)
                 logging.debug("accepted keyword from db:", keyword)
-            # Disabled this part, which evaluated keywords word per word to match
-            # them to existing tags in db in case of not found multiword keywords.
-            # Yake is already capable of finding relevant single word keywords even
-            # with high max_ngram_size. Most of the time if a single-word keyword
-            # hadn't been surfaced by Yake, it wasn't very relevant anyway.
+            # Disabled this part, which evaluated keywords word per word to
+            # match them to existing tags in db in case of not found multiword
+            # keywords. Yake is already capable of finding relevant single word
+            # keywords even with high max_ngram_size. Most of the time if a
+            # single-word keyword hadn't been surfaced by Yake, it wasn't very
+            # relevant anyway.
             # else:
             #     words = kw.split(" ")
             #     for kword in words:
@@ -175,14 +184,13 @@ def extract_tags(full_content, trimmed_content, lang):
             #             tag_keywords.append(keyword)
             #             known_tags.append(keyword)
 
-    # The part below has been disabled because raw, unedited yake keywords are too
-    # irrelevant by themselves most of the time. Instead we'll build our own list
-    # of keywords (taglist.txt) and Yake will only help surface them by
-    # Levenshtein ratios.
+    # The part below has been disabled because raw, unedited yake keywords are
+    # too irrelevant by themselves most of the time. Instead we'll build our
+    # own list of keywords (taglist.txt) and Yake will only help surface them
+    # by Levenshtein ratios.
 
     # If no existing tag matched, add the two most relevant ones that are
-    # sufficiently different from each other
-    # if len(tag_keywords) == 0:
+    # sufficiently different from each other if len(tag_keywords) == 0:
     #     keywords = extract_yake_keywords(full_content, lang, 2, 0.3, 2)
     #     tag_keywords = keywords
 
@@ -229,7 +237,9 @@ def fetch_articles(feed):
     if feed.etag is None and feed.last_modified is None:
         f = feedparser.parse(feed.link)
     elif feed.etag and feed.last_modified:
-        f = feedparser.parse(feed.link, etag=feed.etag, modified=feed.last_modified)
+        f = feedparser.parse(
+            feed.link, etag=feed.etag, modified=feed.last_modified
+        )
     elif feed.etag:
         f = feedparser.parse(feed.link, etag=feed.etag)
     elif feed.last_modified:
@@ -303,7 +313,9 @@ def parse_save_articles(entries, feed):
         try:
             properties["title"] = article.title
             found = (
-                storage.query(Article.link).filter(Article.link == article.link).first()
+                storage.query(Article.link)
+                .filter(Article.link == article.link)
+                .first()
             )
             if found:
                 print(
@@ -357,13 +369,16 @@ def parse_save_articles(entries, feed):
         if "content" in article:
             for content in article.content:
                 if (
-                    content.type != "text/plain" and "image" not in content.type
+                    content.type != "text/plain"
+                    and "image" not in content.type
                 ) or "<p>" in content.value:
                     try:
                         description = html_to_text.handle(content.value)
                         properties["description"] += description
                     except Exception:
-                        logging.exception("Caught exception when extracting html")
+                        logging.exception(
+                            "Caught exception when extracting html"
+                        )
                 elif "image" not in content.type:
                     properties["description"] += content.value
 
@@ -372,7 +387,9 @@ def parse_save_articles(entries, feed):
                     properties["image"] = content.value
                 if content.type == "text/html" and "image" not in properties:
                     try:
-                        soup = BeautifulSoup(f"""{content.value}""", "html.parser")
+                        soup = BeautifulSoup(
+                            f"""{content.value}""", "html.parser"
+                        )
                         if soup is not None:
                             first_image = soup.find("img")
                             if first_image:
@@ -380,7 +397,8 @@ def parse_save_articles(entries, feed):
                                 break
                     except Exception:
                         logging.exception(
-                            "Caught exception when parsing html with BeautifulSoup"
+                            "Caught exception when parsing'\
+                            'html with BeautifulSoup"
                         )
 
         if "description" not in properties:
@@ -402,7 +420,9 @@ def parse_save_articles(entries, feed):
         properties["description"] = properties["description"][:2000]
 
         try:
-            tags_with_confidence = extract_tags(content, content[:1970], feed.language)
+            tags_with_confidence = extract_tags(
+                content, content[:1970], feed.language
+            )
         except Exception:
             logging.exception()
             continue
@@ -494,7 +514,9 @@ def serialize_articles(articles, user, *args, **kwargs):
                 if article in read_articles
             ]
     else:
-        articles_dicts = [serialize_article(article, user) for article in articles]
+        articles_dicts = [
+            serialize_article(article, user) for article in articles
+        ]
 
     results["results"] = articles_dicts
     return results
