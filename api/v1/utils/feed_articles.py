@@ -21,6 +21,8 @@ from models import storage
 from models.article import Article
 from models.tag import Tag, TagArticleAssociation
 
+logging = logging.getLogger(__name__)
+
 html_to_text = html2text.HTML2Text()
 html_to_text.ignore_links = True
 html_to_text.ignore_images = True
@@ -101,12 +103,8 @@ def extract_article_language(article):
     return response.language
 
 
-def extract_tags(full_content, trimmed_content, lang):
-    """Extract tags from a string
-
-    Returns:
-        A list of tuples of (tag, confidence)
-    """
+def extract_NLP_tags(trimmed_content):
+    """Extract Google NLP tags from a string"""
     tags = []
     invalid_tags = [
         "Other",
@@ -140,66 +138,6 @@ def extract_tags(full_content, trimmed_content, lang):
             if tag not in invalid_tags and tag not in all_tags_raw:
                 tags.append((tag, confidence))
             all_tags_raw.append(tag)
-
-    tag_keywords = []
-    keywords = extract_yake_keywords(full_content, lang, 4, 0.6, 17)
-
-    # Check the Levenshtein ratio of Yake's keywords against all keywords
-    # already in database. If this ratio is > 0 with this score cutoff, we
-    # consider the two words the same keyword. Ex: révolutionner/révolution.
-    known_tags_raw = (
-        storage.query(Tag.name).filter(Tag.type == "keyword").all()
-    )
-    # Keyword in known_tags_raw is a one char tuple even when selecting a
-    # single SQL column, so we need keyword[0]
-    known_tags = [keyword[0] for keyword in known_tags_raw]
-    for kw in keywords:
-        tags_to_add = [k[0] for k in tag_keywords]
-        if kw[0] in known_tags and kw[0] not in tags_to_add:
-            tag_keywords.append(kw)
-            known_tags.append(kw)
-            continue
-        for keyword in known_tags:
-            if (
-                ratio(keyword, kw, score_cutoff=0.85) > 0
-                and keyword not in tags_to_add
-            ):
-                tag_keywords.append(keyword)
-                known_tags.append(keyword)
-                logging.debug("keyword from yake:", kw)
-                logging.debug("accepted keyword from db:", keyword)
-            # Disabled this part, which evaluated keywords word per word to
-            # match them to existing tags in db in case of not found multiword
-            # keywords. Yake is already capable of finding relevant single word
-            # keywords even with high max_ngram_size. Most of the time if a
-            # single-word keyword hadn't been surfaced by Yake, it wasn't very
-            # relevant anyway.
-            # else:
-            #     words = kw.split(" ")
-            #     for kword in words:
-            #         if (
-            #             ratio(keyword, kword, score_cutoff=0.85) > 0
-            #             and keyword not in tag_keywords
-            #         ):
-            #             tag_keywords.append(keyword)
-            #             known_tags.append(keyword)
-
-    # The part below has been disabled because raw, unedited yake keywords are
-    # too irrelevant by themselves most of the time. Instead we'll build our
-    # own list of keywords (taglist.txt) and Yake will only help surface them
-    # by Levenshtein ratios.
-
-    # If no existing tag matched, add the two most relevant ones that are
-    # sufficiently different from each other if len(tag_keywords) == 0:
-    #     keywords = extract_yake_keywords(full_content, lang, 2, 0.3, 2)
-    #     tag_keywords = keywords
-
-    for tag_keyword in tag_keywords:
-        tags.append(tag_keyword)
-
-    print("all keywords:", keywords)
-    # print('all tags final: ', tags)
-    print("tag_keywords:", tag_keywords)
     return tags
 
 
@@ -220,6 +158,55 @@ def extract_yake_keywords(content, lang, max_ngram_size, dedupLim, top):
     # (smaller score = more relevant) so I invert them to match Google's.
     keywords = [(kw[0], max(0, 1 - kw[1]), "keyword") for kw in keywords]
     return keywords
+
+
+def dedup_keywords_against_db(keywords, all_tags):
+    """Check the Levenshtein ratio of Yake's keywords against all keywords
+    already in database to append only unique ones to all_tags. If this ratio
+    is > 0 with this score cutoff, we consider the two words the same keyword.
+    Ex: révolutionner/révolution"""
+    known_tags_raw = (
+        storage.query(Tag.name).filter(Tag.type == "keyword").all()
+    )
+    # Keyword in known_tags_raw is a one char tuple even when selecting a
+    # single SQL column, so we need keyword[0]
+    known_tag_names = [keyword[0] for keyword in known_tags_raw]
+    added_tags = []
+
+    for kw in keywords:
+        # exact match
+        if kw[0] in known_tag_names and kw[0] not in added_tags:
+            added_tags.append(kw[0])
+            all_tags.append(kw)
+            known_tag_names.append(kw[0])
+            logging.debug("added exact matching keyword: %s", kw)
+            continue
+        # no match, so check for near-exactitude with Levenshtein ratio
+        for db_keyword_name in known_tag_names:
+            if (
+                ratio(db_keyword_name, kw[0], score_cutoff=0.85) > 0
+                and db_keyword_name not in added_tags
+            ):
+                # add both existing and near-exact versions to added_tags so
+                # both are checked for exactitude, preventing adding eventual
+                # duplicates in remaining keywords
+                added_tags.append(kw[0])
+                added_tags.append(db_keyword_name[0])
+                all_tags.append((db_keyword_name, kw[1], kw[2]))
+                logging.debug("keyword from yake: %s", kw[0])
+                logging.debug("accepted keyword from db: %s", db_keyword_name)
+
+
+def extract_tags(full_content, trimmed_content, lang):
+    """Extract tags from a string
+
+    Returns:
+        A list of tuples of (tag, confidence)
+    """
+    tags = extract_NLP_tags(trimmed_content)
+    keywords = extract_yake_keywords(full_content, lang, 4, 0.6, 17)
+    dedup_keywords_against_db(keywords, tags)
+    return tags
 
 
 def fetch_articles(feed):
