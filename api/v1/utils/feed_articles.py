@@ -162,8 +162,13 @@ def extract_yake_keywords(content, lang, max_ngram_size, dedupLim, top):
 
 def dedup_keywords_against_db(keywords, all_tags):
     """Check the Levenshtein ratio of Yake's keywords against all keywords
-    already in database to append only unique ones to all_tags. If this ratio
-    is > 0 with this score cutoff, we consider the two words the same keyword.
+    already in database to only append to all_tags those matching exactly or
+    near exactly once (on near exact match the database keyword is the one to
+    add). During Article creation, the keyword to attach to the article will be
+    the one existing in database, and we'll create a new association to attach
+    the personalized confidence to the tag.
+    If the Levenshtein ratio is > 0 with the used score cutoff, we consider the
+    two words the same keyword.
     Ex: révolutionner/révolution"""
     known_tags_raw = (
         storage.query(Tag.name).filter(Tag.type == "keyword").all()
