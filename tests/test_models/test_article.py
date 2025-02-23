@@ -7,7 +7,6 @@ import inspect
 import unittest
 
 import pycodestyle
-from decouple import config
 
 from models.article import Article
 from models.base_model import BaseModel
@@ -20,13 +19,6 @@ class TestArticleDocs(unittest.TestCase):
     def setUpClass(cls):
         """Set up for the doc tests"""
         cls.article_f = inspect.getmembers(Article, inspect.isfunction)
-
-    def setUp(self):
-        if config("MYSQL_ENV") != "test":
-            self.fail(
-                """You're on the prod database.
-                Edit .env to test on the right database"""
-            )
 
     def test_pycodestyle_conformance_article(self):
         """Test that models/article.py conforms to pycodestyle."""

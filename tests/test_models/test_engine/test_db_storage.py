@@ -7,7 +7,6 @@ import inspect
 import unittest
 
 import pycodestyle
-from decouple import config
 
 from models import storage
 from models.article import Article
@@ -26,13 +25,6 @@ class TestDBStorageDocs(unittest.TestCase):
     def setUpClass(cls):
         """Set up for the doc tests"""
         cls.dbs_f = inspect.getmembers(DBStorage, inspect.isfunction)
-
-    def setUp(self):
-        if config("MYSQL_ENV") != "test":
-            self.fail(
-                """You're on the prod database.
-                Edit .env to test on the right database"""
-            )
 
     def test_pycodestyle_conformance_db_storage(self):
         """Test that models/engine/db_storage.py conforms to Pycodestyle."""

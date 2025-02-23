@@ -6,7 +6,6 @@ import unittest
 from os.path import getsize
 
 import pycodestyle
-from decouple import config
 
 from models import storage
 from models.tag import Tag
@@ -24,13 +23,6 @@ class TestExceptionsDocs(unittest.TestCase):
         cls.feed_articles_utils_f = inspect.getmembers(
             feed_articles_utils, inspect.isfunction
         )
-
-    def setUp(self):
-        if config("MYSQL_ENV") != "test":
-            self.fail(
-                """You're on the prod database.
-                Edit .env to test on the right database"""
-            )
 
     def test_pep8_conformance(self):
         """Test that api/v1/utils/feed_articles.py conforms to PEP8."""

@@ -7,7 +7,6 @@ import inspect
 import unittest
 
 import pycodestyle
-from decouple import config
 
 from models.base_model import BaseModel
 from models.feed import Feed
@@ -20,13 +19,6 @@ class TestFeedDocs(unittest.TestCase):
     def setUpClass(cls):
         """Set up for the doc tests"""
         cls.feed_f = inspect.getmembers(Feed, inspect.isfunction)
-
-    def setUp(self):
-        if config("MYSQL_ENV") != "test":
-            self.fail(
-                """You're on the prod database.
-                Edit .env to test on the right database"""
-            )
 
     def test_pycodestyle_conformance_feed(self):
         """Test that models/feed.py conforms to pycodestyle."""

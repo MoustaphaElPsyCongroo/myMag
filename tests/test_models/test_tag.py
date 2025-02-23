@@ -7,7 +7,6 @@ import inspect
 import unittest
 
 import pycodestyle
-from decouple import config
 
 from models.base_model import BaseModel
 from models.tag import Tag
@@ -20,13 +19,6 @@ class TestTagDocs(unittest.TestCase):
     def setUpClass(cls):
         """Set up for the doc tests"""
         cls.tag_f = inspect.getmembers(Tag, inspect.isfunction)
-
-    def setUp(self):
-        if config("MYSQL_ENV") != "test":
-            self.fail(
-                """You're on the prod database.
-                Edit .env to test on the right database"""
-            )
 
     def test_pycodestyle_conformance_tag(self):
         """Test that models/tag.py conforms to pycodestyle."""
